@@ -1248,9 +1248,23 @@ func ToStringMapString(value interface{}) (m map[string]string, err error) {
 	case string:
 		err = json.Unmarshal([]byte(v), &m)
 		return
+	case nil:
+		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
 	default:
-		err = fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
-		return
+		if reflect.TypeOf(v).Kind() != reflect.Map {
+			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
+		}
+
+		vf := reflect.ValueOf(v)
+		for _, keyVal := range vf.MapKeys() {
+			val, _err := ToString(vf.MapIndex(keyVal).Interface())
+			if _err != nil {
+				err = fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
+				return
+			}
+			m[keyVal.Interface().(string)] = val
+		}
+		return m, nil
 	}
 }
 
@@ -1281,9 +1295,18 @@ func ToStringMap(value interface{}) (m map[string]interface{}, err error) {
 	case string:
 		err = json.Unmarshal([]byte(v), &m)
 		return
+	case nil:
+		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]interface{}", v, v)
 	default:
-		err = fmt.Errorf("unable to cast %#v of type %T to map[string]interface{}", v, v)
-		return
+		if reflect.TypeOf(v).Kind() != reflect.Map {
+			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]interface{}", v, v)
+		}
+
+		vf := reflect.ValueOf(v)
+		for _, keyVal := range vf.MapKeys() {
+			m[keyVal.Interface().(string)] = vf.MapIndex(keyVal).Interface()
+		}
+		return m, nil
 	}
 }
 
