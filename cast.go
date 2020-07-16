@@ -24,6 +24,35 @@ import (
 	"time"
 )
 
+// Layouts is the layouts to retry to parse the time string with them in turn.
+var Layouts = []string{
+	time.RFC3339Nano,
+	"2006-01-02 15:04:05",
+	"2006-01-02T15:04:05", // iso8601 without timezone
+	time.RFC1123Z,
+	time.RFC1123,
+	time.RFC822Z,
+	time.RFC822,
+	time.RFC850,
+	time.ANSIC,
+	time.UnixDate,
+	time.RubyDate,
+	"2006-01-02 15:04:05.999999999 -0700 MST", // Time.String()
+	"2006-01-02",
+	"02 Jan 2006",
+	"2006-01-02T15:04:05-0700", // RFC3339 without timezone hh:mm colon
+	"2006-01-02 15:04:05 -07:00",
+	"2006-01-02 15:04:05 -0700",
+	"2006-01-02 15:04:05Z07:00", // RFC3339 without T
+	"2006-01-02 15:04:05Z0700",  // RFC3339 without T or timezone hh:mm colon
+	"2006-01-02 15:04:05",
+	time.Kitchen,
+	time.Stamp,
+	time.StampMilli,
+	time.StampMicro,
+	time.StampNano,
+}
+
 var (
 	errNotMap             = fmt.Errorf("the value is not a map")
 	errNotString          = fmt.Errorf("the value is not a string")
@@ -52,57 +81,55 @@ func indirect(a interface{}) interface{} {
 	return v.Interface()
 }
 
+// StringToTimeInLocation is the same StringToTime, but use time.ParseInLocation
+// instead of time.Parse to parse the time string with loc.
+func StringToTimeInLocation(loc *time.Location, s string, layout ...string) (time.Time, error) {
+	return stringToTime(func(layout string, v string) (time.Time, error) {
+		return time.ParseInLocation(layout, v, loc)
+	}, s, layout...)
+}
+
 // StringToTime does the best to parse a string into a time.Time.
 //
 // If giving layout, it will use it, or attempt to guess it by using
 // a predefined list of formats.
 func StringToTime(s string, layout ...string) (t time.Time, err error) {
+	return stringToTime(time.Parse, s, layout...)
+}
+
+func stringToTime(p func(string, string) (time.Time, error), s string,
+	layout ...string) (t time.Time, err error) {
 	if s == "" || s == "0000-00-00 00:00:00" {
 		return
 	} else if len(layout) > 0 && layout[0] != "" {
-		return time.Parse(layout[0], s)
+		return p(layout[0], s)
 	}
 
-	layouts := []string{
-		time.RFC3339Nano,
-		"2006-01-02 15:04:05",
-		"2006-01-02T15:04:05", // iso8601 without timezone
-		time.RFC1123Z,
-		time.RFC1123,
-		time.RFC822Z,
-		time.RFC822,
-		time.RFC850,
-		time.ANSIC,
-		time.UnixDate,
-		time.RubyDate,
-		"2006-01-02 15:04:05.999999999 -0700 MST", // Time.String()
-		"2006-01-02",
-		"02 Jan 2006",
-		"2006-01-02T15:04:05-0700", // RFC3339 without timezone hh:mm colon
-		"2006-01-02 15:04:05 -07:00",
-		"2006-01-02 15:04:05 -0700",
-		"2006-01-02 15:04:05Z07:00", // RFC3339 without T
-		"2006-01-02 15:04:05Z0700",  // RFC3339 without T or timezone hh:mm colon
-		"2006-01-02 15:04:05",
-		time.Kitchen,
-		time.Stamp,
-		time.StampMilli,
-		time.StampMicro,
-		time.StampNano,
-	}
-
-	for _, layout := range layouts {
-		if t, err = time.Parse(layout, s); err == nil {
+	for _, layout := range Layouts {
+		if t, err = p(layout, s); err == nil {
 			return
 		}
 	}
 	return t, fmt.Errorf("unable to parse time: '%s'", s)
 }
 
+// ToTimeInLocation is the same as ToTime, but use StringToTimeInLocation
+// instead of StringToTime to parse the time string with loc.
+func ToTimeInLocation(loc *time.Location, v interface{}, layout ...string) (time.Time, error) {
+	return toTime(func(s string, layout ...string) (time.Time, error) {
+		return StringToTimeInLocation(loc, s, layout...)
+	}, v, layout...)
+}
+
 // ToTime does the best to convert any certain value to time.Time.
 //
 // If value is string or []byte, it will use StringToTime to convert it.
 func ToTime(value interface{}, layout ...string) (time.Time, error) {
+	return toTime(StringToTime, value, layout...)
+}
+
+func toTime(p func(string, ...string) (time.Time, error),
+	value interface{}, layout ...string) (time.Time, error) {
 	value = indirect(value)
 
 	switch v := value.(type) {
@@ -123,14 +150,14 @@ func ToTime(value interface{}, layout ...string) (time.Time, error) {
 	case uint32:
 		return time.Unix(int64(v), 0), nil
 	case string:
-		return StringToTime(v, layout...)
+		return p(v, layout...)
 	case []byte:
 		if len(v) == 0 {
 			return time.Time{}, nil
 		}
-		return StringToTime(string(v), layout...)
+		return p(string(v), layout...)
 	case fmt.Stringer:
-		return StringToTime(v.String(), layout...)
+		return p(v.String(), layout...)
 	default:
 		return time.Time{}, fmt.Errorf("unable to cast %#v of type %T to time.Time", v, v)
 	}
