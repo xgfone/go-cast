@@ -61,3 +61,66 @@ func TestToStringMapInt64(t *testing.T) {
 		}
 	}
 }
+
+func TestIsZero(t *testing.T) {
+	if !IsZero(0) || IsZero(1) {
+		t.Error()
+	}
+
+	if !IsZero(int(0)) || IsZero(int(1)) {
+		t.Error()
+	}
+
+	if !IsZero(int8(0)) || IsZero(int8(1)) {
+		t.Error()
+	}
+
+	if !IsZero(int16(0)) || IsZero(int16(1)) {
+		t.Error()
+	}
+
+	if !IsZero(int32(0)) || IsZero(int32(1)) {
+		t.Error()
+	}
+
+	if !IsZero(int64(0)) || IsZero(int64(1)) {
+		t.Error()
+	}
+
+	if !IsZero(uint(0)) || IsZero(uint(1)) {
+		t.Error()
+	}
+
+	if !IsZero(uint8(0)) || IsZero(uint8(1)) {
+		t.Error()
+	}
+
+	if !IsZero(uint16(0)) || IsZero(uint16(1)) {
+		t.Error()
+	}
+
+	if !IsZero(uint32(0)) || IsZero(uint32(1)) {
+		t.Error()
+	}
+
+	if !IsZero(uint64(0)) || IsZero(uint64(1)) {
+		t.Error()
+	}
+
+	if !IsZero(float32(0)) || IsZero(float32(1)) {
+		t.Error()
+	}
+
+	if !IsZero(float64(0)) || IsZero(float64(1)) {
+		t.Error()
+	}
+
+	if !IsZero(0.0) || IsZero(1.0) {
+		t.Error()
+	}
+
+	if !IsZero("") || IsZero("1") {
+		t.Error()
+	}
+
+}

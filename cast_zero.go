@@ -66,9 +66,31 @@ func IsZero(value interface{}) bool {
 		return !v
 	case string:
 		return v == ""
-	case int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64:
+	case int:
+		return v == 0
+	case int8:
+		return v == 0
+	case int16:
+		return v == 0
+	case int32:
+		return v == 0
+	case int64:
+		return v == 0
+	case uint:
+		return v == 0
+	case uint8:
+		return v == 0
+	case uint16:
+		return v == 0
+	case uint32:
+		return v == 0
+	case uint64:
+		return v == 0
+	case uintptr:
+		return v == 0
+	case float32:
+		return v == 0
+	case float64:
 		return v == 0
 	case complex64:
 		c := complex128(v)
@@ -82,10 +104,38 @@ func IsZero(value interface{}) bool {
 
 // IsEmpty reports whether the value is empty.
 func IsEmpty(value interface{}) bool {
-	switch value.(type) {
-	case bool, string, float32, float64, complex64, complex128,
-		int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr:
+	switch v := value.(type) {
+	case bool:
+		return !v
+	case string:
+		return v == ""
+	case int:
+		return v == 0
+	case int8:
+		return v == 0
+	case int16:
+		return v == 0
+	case int32:
+		return v == 0
+	case int64:
+		return v == 0
+	case uint:
+		return v == 0
+	case uint8:
+		return v == 0
+	case uint16:
+		return v == 0
+	case uint32:
+		return v == 0
+	case uint64:
+		return v == 0
+	case uintptr:
+		return v == 0
+	case float32:
+		return v == 0
+	case float64:
+		return v == 0
+	case complex64, complex128:
 		return IsZero(value)
 	default:
 		switch v := reflect.ValueOf(value); v.Kind() {
