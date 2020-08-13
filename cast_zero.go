@@ -157,3 +157,14 @@ func IsEmpty(value interface{}) bool {
 		}
 	}
 }
+
+// IsSet reports whether the value is set.
+//
+// If value has the method `IsSet() bool`, call it. Or check whether it's ZERO.
+// If yes, return false; or return true.
+func IsSet(value interface{}) bool {
+	if v, ok := value.(interface{ IsSet() bool }); ok {
+		return v.IsSet()
+	}
+	return !IsZero(value)
+}

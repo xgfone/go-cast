@@ -128,3 +128,12 @@ func TestIsZero(t *testing.T) {
 		t.Error()
 	}
 }
+
+func TestIsSet(t *testing.T) {
+	if IsSet(int8(0)) {
+		t.Error()
+	}
+	if !IsSet(int8(1)) {
+		t.Error()
+	}
+}
