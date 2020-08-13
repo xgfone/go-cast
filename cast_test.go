@@ -16,6 +16,7 @@ package cast
 
 import (
 	"testing"
+	"time"
 )
 
 func TestToStringMapInt64(t *testing.T) {
@@ -123,4 +124,7 @@ func TestIsZero(t *testing.T) {
 		t.Error()
 	}
 
+	if !IsZero(time.Time{}) || IsZero(time.Now()) {
+		t.Error()
+	}
 }

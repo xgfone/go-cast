@@ -19,6 +19,11 @@ import (
 	"reflect"
 )
 
+// IsZeror is an interface to report whether itself is ZERO.
+type IsZeror interface {
+	IsZero() bool
+}
+
 func isZero(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Bool:
@@ -60,6 +65,8 @@ func isZero(v reflect.Value) bool {
 }
 
 // IsZero reports whether the value is ZERO.
+//
+// If the value has implemented the interface IsZeror, it will be called.
 func IsZero(value interface{}) bool {
 	switch v := value.(type) {
 	case bool:
@@ -97,6 +104,8 @@ func IsZero(value interface{}) bool {
 		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
 	case complex128:
 		return math.Float64bits(real(v)) == 0 && math.Float64bits(imag(v)) == 0
+	case IsZeror:
+		return v.IsZero()
 	default:
 		return isZero(reflect.ValueOf(value))
 	}
@@ -137,6 +146,8 @@ func IsEmpty(value interface{}) bool {
 		return v == 0
 	case complex64, complex128:
 		return IsZero(value)
+	case IsZeror:
+		return v.IsZero()
 	default:
 		switch v := reflect.ValueOf(value); v.Kind() {
 		case reflect.Array, reflect.Map, reflect.Slice:
