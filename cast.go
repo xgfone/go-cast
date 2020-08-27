@@ -113,51 +113,48 @@ func stringToTime(p func(string, string) (time.Time, error), s string,
 	return t, fmt.Errorf("unable to parse time: '%s'", s)
 }
 
-// ToTimeInLocation is the same as ToTime, but use StringToTimeInLocation
-// instead of StringToTime to parse the time string with loc.
-func ToTimeInLocation(loc *time.Location, v interface{}, layout ...string) (time.Time, error) {
-	return toTime(func(s string, layout ...string) (time.Time, error) {
-		return StringToTimeInLocation(loc, s, layout...)
-	}, v, layout...)
-}
-
-// ToTime does the best to convert any certain value to time.Time.
+// ToTimeInLocation does the best to convert any certain value to time.Time.
 //
-// If value is string or []byte, it will use StringToTime to convert it.
-func ToTime(value interface{}, layout ...string) (time.Time, error) {
-	return toTime(StringToTime, value, layout...)
+// If value is a string or []byte, it uses StringToTimeInLocation to convert it
+// with loc. For others, it sets the location of the result time.Time to loc.
+func ToTimeInLocation(loc *time.Location, v interface{}, layout ...string) (time.Time, error) {
+	return toTime(loc, v, layout...)
 }
 
-func toTime(p func(string, ...string) (time.Time, error),
-	value interface{}, layout ...string) (time.Time, error) {
+// ToTime is equal to ToTimeInLocation(time.Local, value, layout...).
+func ToTime(value interface{}, layout ...string) (time.Time, error) {
+	return toTime(time.Local, value, layout...)
+}
+
+func toTime(loc *time.Location, value interface{}, layout ...string) (time.Time, error) {
 	value = indirect(value)
 
 	switch v := value.(type) {
 	case nil:
 		return time.Time{}, nil
 	case time.Time:
-		return v, nil
+		return v.In(loc), nil
 	case int:
-		return time.Unix(int64(v), 0), nil
+		return time.Unix(int64(v), 0).In(loc), nil
 	case int64:
-		return time.Unix(v, 0), nil
+		return time.Unix(v, 0).In(loc), nil
 	case int32:
-		return time.Unix(int64(v), 0), nil
+		return time.Unix(int64(v), 0).In(loc), nil
 	case uint:
-		return time.Unix(int64(v), 0), nil
+		return time.Unix(int64(v), 0).In(loc), nil
 	case uint64:
-		return time.Unix(int64(v), 0), nil
+		return time.Unix(int64(v), 0).In(loc), nil
 	case uint32:
-		return time.Unix(int64(v), 0), nil
+		return time.Unix(int64(v), 0).In(loc), nil
 	case string:
-		return p(v, layout...)
+		return StringToTimeInLocation(loc, v, layout...)
 	case []byte:
 		if len(v) == 0 {
 			return time.Time{}, nil
 		}
-		return p(string(v), layout...)
+		return StringToTimeInLocation(loc, string(v), layout...)
 	case fmt.Stringer:
-		return p(v.String(), layout...)
+		return StringToTimeInLocation(loc, v.String(), layout...)
 	default:
 		return time.Time{}, fmt.Errorf("unable to cast %#v of type %T to time.Time", v, v)
 	}
