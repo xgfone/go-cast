@@ -81,37 +81,35 @@ func indirect(a interface{}) interface{} {
 	return v.Interface()
 }
 
-// StringToTimeInLocation is the same StringToTime, but use time.ParseInLocation
-// instead of time.Parse to parse the time string with loc.
-func StringToTimeInLocation(loc *time.Location, s string, layout ...string) (time.Time, error) {
-	return stringToTime(func(layout string, v string) (time.Time, error) {
-		return time.ParseInLocation(layout, v, loc)
-	}, s, layout...)
-}
-
-// StringToTime does the best to parse a string into a time.Time.
+// StringToTimeInLocation does the best to parse a string into a time.Time.
 //
 // If giving layout, it will use it, or attempt to guess it by using
 // a predefined list of formats.
-func StringToTime(s string, layout ...string) (t time.Time, err error) {
-	return stringToTime(time.Parse, s, layout...)
+//
+// Notice: for the given layouts, they will be retried in turn.
+func StringToTimeInLocation(loc *time.Location, s string, layouts ...string) (time.Time, error) {
+	return stringToTime(loc, s, layouts...)
 }
 
-func stringToTime(p func(string, string) (time.Time, error), s string,
-	layouts ...string) (t time.Time, err error) {
+// StringToTime is equal to StringToTimeInLocation(time.Local, s, layouts...).
+func StringToTime(s string, layouts ...string) (t time.Time, err error) {
+	return StringToTimeInLocation(time.Local, s, layouts...)
+}
+
+func stringToTime(loc *time.Location, s string, layouts ...string) (time.Time, error) {
 	if s == "" || s == "0000-00-00 00:00:00" {
-		return
+		return time.Time{}, nil
 	}
 	if len(layouts) == 0 {
 		layouts = Layouts
 	}
 
 	for _, layout := range layouts {
-		if t, err = p(layout, s); err == nil {
-			return
+		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+			return t, nil
 		}
 	}
-	return t, fmt.Errorf("unable to parse time: '%s'", s)
+	return time.Time{}, fmt.Errorf("unable to parse time: '%s'", s)
 }
 
 // ToTimeInLocation does the best to convert any certain value to time.Time.

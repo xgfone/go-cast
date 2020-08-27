@@ -19,6 +19,24 @@ import (
 	"time"
 )
 
+func TestToStringToTime(t *testing.T) {
+	t1, err := StringToTime("2020-08-27 23:14:30 +0800 CST")
+	if err != nil {
+		t.Fatal(err)
+	} else if unixtime := t1.Unix(); unixtime != 1598541270 {
+		t.Error(unixtime)
+	}
+
+	layout := "2006-01-02 15:04:05.999999999 -0700 MST"
+	t2, err := StringToTimeInLocation(time.UTC, "2020-08-27 23:14:30 +0800 CST",
+		time.ANSIC, layout)
+	if err != nil {
+		t.Fatal(err)
+	} else if unixtime := t2.Unix(); unixtime != 1598541270 {
+		t.Error(unixtime)
+	}
+}
+
 func TestToStringMapInt64(t *testing.T) {
 	ms, err := ToStringMapInt64(map[string]interface{}{"a": 123, "b": 456})
 	if err != nil {
