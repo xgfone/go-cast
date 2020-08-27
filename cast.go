@@ -98,14 +98,15 @@ func StringToTime(s string, layout ...string) (t time.Time, err error) {
 }
 
 func stringToTime(p func(string, string) (time.Time, error), s string,
-	layout ...string) (t time.Time, err error) {
+	layouts ...string) (t time.Time, err error) {
 	if s == "" || s == "0000-00-00 00:00:00" {
 		return
-	} else if len(layout) > 0 && layout[0] != "" {
-		return p(layout[0], s)
+	}
+	if len(layouts) == 0 {
+		layouts = Layouts
 	}
 
-	for _, layout := range Layouts {
+	for _, layout := range layouts {
 		if t, err = p(layout, s); err == nil {
 			return
 		}
