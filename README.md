@@ -1,4 +1,4 @@
-# Go Type Cast [![Build Status](https://api.travis-ci.com/xgfone/cast.svg?branch=master)](https://travis-ci.com/github/xgfone/cast) [![GoDoc](https://pkg.go.dev/badge/github.com/xgfone/cast)](https://pkg.go.dev/github.com/xgfone/cast) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://raw.githubusercontent.com/xgfone/cast/master/LICENSE)
+# Go Type Cast [![Build Status](https://github.com/xgfone/cast/actions/workflows/go.yml/badge.svg)](https://github.com/xgfone/cast/actions/workflows/go.yml) [![GoDoc](https://pkg.go.dev/badge/github.com/xgfone/cast)](https://pkg.go.dev/github.com/xgfone/cast) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://raw.githubusercontent.com/xgfone/cast/master/LICENSE)
 
 The package supporting `Go1.7+` supplies some functions to convert the data between types, such as `ToXXX` and `MustToXXX`.
 
