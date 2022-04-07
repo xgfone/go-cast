@@ -190,6 +190,9 @@ func ToDuration(value interface{}) (time.Duration, error) {
 
 // ToBool does the best to convert any certain value to bool.
 //
+// For the byte slice, []byte{'\x00'} and []byte{'\x01'} are recognized
+// as "0" and "1", and others are converted to a string.
+//
 // For the string, the true value is
 //   "t", "T", "1", "on", "On", "ON", "true", "True", "TRUE", "yes", "Yes", "YES"
 // the false value is
@@ -206,8 +209,16 @@ func ToBool(value interface{}) (bool, error) {
 	case bool:
 		return v, nil
 	case []byte:
-		if len(v) == 0 {
+		switch len(v) {
+		case 0:
 			return false, nil
+		case 1:
+			switch v[0] {
+			case '\x00':
+				return false, nil
+			case '\x01':
+				return true, nil
+			}
 		}
 		s = string(v)
 	case string:

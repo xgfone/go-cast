@@ -155,3 +155,17 @@ func TestIsSet(t *testing.T) {
 		t.Error()
 	}
 }
+
+func TestToBool(t *testing.T) {
+	if b, err := ToBool([]byte{'\x00'}); err != nil {
+		t.Error(err)
+	} else if b {
+		t.Errorf("unexpected bool true")
+	}
+
+	if b, err := ToBool([]byte{'\x01'}); err != nil {
+		t.Error(err)
+	} else if !b {
+		t.Errorf("unexpected bool false")
+	}
+}
