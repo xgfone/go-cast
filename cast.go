@@ -98,7 +98,7 @@ func StringToTime(s string, layouts ...string) (t time.Time, err error) {
 
 func stringToTime(loc *time.Location, s string, layouts ...string) (time.Time, error) {
 	if s == "" || s == "0000-00-00 00:00:00" {
-		return time.Time{}, nil
+		return time.Time{}.In(loc), nil
 	}
 	if len(layouts) == 0 {
 		layouts = Layouts
@@ -130,7 +130,7 @@ func toTime(loc *time.Location, value interface{}, layout ...string) (time.Time,
 
 	switch v := value.(type) {
 	case nil:
-		return time.Time{}, nil
+		return time.Time{}.In(loc), nil
 	case time.Time:
 		return v.In(loc), nil
 	case int:
@@ -149,7 +149,7 @@ func toTime(loc *time.Location, value interface{}, layout ...string) (time.Time,
 		return StringToTimeInLocation(loc, v, layout...)
 	case []byte:
 		if len(v) == 0 {
-			return time.Time{}, nil
+			return time.Time{}.In(loc), nil
 		}
 		return StringToTimeInLocation(loc, string(v), layout...)
 	case fmt.Stringer:
@@ -194,9 +194,12 @@ func ToDuration(value interface{}) (time.Duration, error) {
 // as "0" and "1", and others are converted to a string.
 //
 // For the string, the true value is
-//   "t", "T", "1", "on", "On", "ON", "true", "True", "TRUE", "yes", "Yes", "YES"
+//
+//	"t", "T", "1", "on", "On", "ON", "true", "True", "TRUE", "yes", "Yes", "YES"
+//
 // the false value is
-//   "f", "F", "0", "off", "Off", "OFF", "false", "False", "FALSE", "no", "No", "NO", ""
+//
+//	"f", "F", "0", "off", "Off", "OFF", "false", "False", "FALSE", "no", "No", "NO", ""
 //
 // For other types, if the value is ZERO of the type, it's false. Or it's true.
 func ToBool(value interface{}) (bool, error) {
