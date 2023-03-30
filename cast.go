@@ -1,4 +1,4 @@
-// Copyright 2020 xgfone
+// Copyright 2023 xgfone
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,1658 +15,528 @@
 package cast
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
-	"html/template"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
+
+	"github.com/xgfone/defaults"
 )
 
-// Layouts is the layouts to retry to parse the time string with them in turn.
-var Layouts = []string{
-	time.RFC3339Nano,
-	"2006-01-02 15:04:05",
-	"2006-01-02T15:04:05", // iso8601 without timezone
-	time.RFC1123Z,
-	time.RFC1123,
-	time.RFC822Z,
-	time.RFC822,
-	time.RFC850,
-	time.ANSIC,
-	time.UnixDate,
-	time.RubyDate,
-	"2006-01-02 15:04:05.999999999 -0700 MST", // Time.String()
-	"2006-01-02",
-	"02 Jan 2006",
-	"2006-01-02T15:04:05-0700", // RFC3339 without timezone hh:mm colon
-	"2006-01-02 15:04:05 -07:00",
-	"2006-01-02 15:04:05 -0700",
-	"2006-01-02 15:04:05Z07:00", // RFC3339 without T
-	"2006-01-02 15:04:05Z0700",  // RFC3339 without T or timezone hh:mm colon
-	"2006-01-02 15:04:05",
-	time.Kitchen,
-	time.Stamp,
-	time.StampMilli,
-	time.StampMicro,
-	time.StampNano,
-}
-
+// Define some hook functions to intercept the ToXXX conversion.
 var (
-	errNotMap             = fmt.Errorf("the value is not a map")
-	errNotString          = fmt.Errorf("the value is not a string")
-	errNegativeNotAllowed = fmt.Errorf("unable to cast negative value")
+	ToBoolHook     func(src interface{}) (dst bool, err error)
+	ToInt64Hook    func(src interface{}) (dst int64, err error)
+	ToUint64Hook   func(src interface{}) (dst uint64, err error)
+	ToFloat64Hook  func(src interface{}) (dst float64, err error)
+	ToStringHook   func(src interface{}) (dst string, err error)
+	ToDurationHook func(src interface{}) (dst time.Duration, err error)
+	ToTimeHook     func(src interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error)
 )
 
-// ErrUnknownType is returned when not to identify a data type.
-var ErrUnknownType = fmt.Errorf("unknown type")
-
-// From html/template/content.go
-// Copyright 2011 The Go Authors. All rights reserved.
-// indirect returns the value, after dereferencing as many times
-// as necessary to reach the base type (or nil).
-func indirect(a interface{}) interface{} {
-	if a == nil {
+func indirect(v interface{}) interface{} {
+	if v == nil {
 		return nil
 	}
-	if t := reflect.TypeOf(a); t.Kind() != reflect.Ptr {
-		// Avoid creating a reflect.Value if it's not a pointer.
-		return a
+
+	switch vf := reflect.ValueOf(v); vf.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if vf.IsNil() {
+			return nil
+		}
+		return indirect(vf.Elem().Interface())
+	default:
+		return v
 	}
-	v := reflect.ValueOf(a)
-	for v.Kind() == reflect.Ptr && !v.IsNil() {
-		v = v.Elem()
+}
+
+// ToBool converts any to a bool value.
+func ToBool(any interface{}) (dst bool, err error) {
+	any = indirect(any)
+	if ToBoolHook != nil {
+		return ToBoolHook(any)
 	}
-	return v.Interface()
+
+	switch src := any.(type) {
+	case nil:
+	case bool:
+		dst = src
+	case string:
+		dst, err = parseBool(src)
+	case []byte:
+		switch len(src) {
+		case 0:
+		case 1:
+			switch src[0] {
+			case '\x00':
+			case '\x01':
+				dst = true
+			default:
+				dst, err = parseBool(string(src))
+			}
+		default:
+			dst, err = parseBool(string(src))
+		}
+	case float32:
+		dst = src != 0
+	case float64:
+		dst = src != 0
+	case int:
+		dst = src != 0
+	case int8:
+		dst = src != 0
+	case int16:
+		dst = src != 0
+	case int32:
+		dst = src != 0
+	case int64:
+		dst = src != 0
+	case uint:
+		dst = src != 0
+	case uint8:
+		dst = src != 0
+	case uint16:
+		dst = src != 0
+	case uint32:
+		dst = src != 0
+	case uint64:
+		dst = src != 0
+	case uintptr:
+		dst = src != 0
+	case fmt.Stringer:
+		dst, err = parseBool(src.String())
+	default:
+		err = fmt.Errorf("cast.ToBool: unsupport to convert %T to bool", any)
+	}
+	return
 }
 
-// StringToTimeInLocation does the best to parse a string into a time.Time.
+func parseBool(src string) (dst bool, err error) {
+	if src != "" {
+		dst, err = strconv.ParseBool(src)
+	}
+	return
+}
+
+// ToString converts any to a string value.
+func ToString(any interface{}) (dst string, err error) {
+	any = indirect(any)
+	if ToStringHook != nil {
+		return ToStringHook(any)
+	}
+
+	switch src := any.(type) {
+	case nil:
+	case bool:
+		dst = strconv.FormatBool(src)
+	case string:
+		dst = src
+	case []byte:
+		dst = string(src)
+	case float32:
+		dst = strconv.FormatFloat(float64(src), 'f', -1, 32)
+	case float64:
+		dst = strconv.FormatFloat(src, 'f', -1, 64)
+	case int:
+		dst = strconv.FormatInt(int64(src), 10)
+	case int8:
+		dst = strconv.FormatInt(int64(src), 10)
+	case int16:
+		dst = strconv.FormatInt(int64(src), 10)
+	case int32:
+		dst = strconv.FormatInt(int64(src), 10)
+	case int64:
+		dst = strconv.FormatInt(src, 10)
+	case uint:
+		return strconv.FormatUint(uint64(src), 10), nil
+	case uint8:
+		return strconv.FormatUint(uint64(src), 10), nil
+	case uint16:
+		return strconv.FormatUint(uint64(src), 10), nil
+	case uint32:
+		return strconv.FormatUint(uint64(src), 10), nil
+	case uint64:
+		return strconv.FormatUint(src, 10), nil
+	case uintptr:
+		return strconv.FormatUint(uint64(src), 10), nil
+	case time.Time:
+		dst = src.Format(time.RFC3339Nano)
+	case error:
+		dst = src.Error()
+	case fmt.Stringer:
+		dst = src.String()
+	default:
+		err = fmt.Errorf("cast.ToString: unsupport to convert %T to string", any)
+	}
+	return
+}
+
+// ToInt64 converts any to a int64 value.
+func ToInt64(any interface{}) (dst int64, err error) {
+	any = indirect(any)
+	if ToInt64Hook != nil {
+		return ToInt64Hook(any)
+	}
+
+	switch src := any.(type) {
+	case nil:
+	case bool:
+		if src {
+			dst = 1
+		}
+	case string:
+		dst, err = parseInt64(src)
+	case []byte:
+		dst, err = parseInt64(string(src))
+	case float32:
+		dst = int64(src)
+	case float64:
+		dst = int64(src)
+	case int:
+		dst = int64(src)
+	case int8:
+		dst = int64(src)
+	case int16:
+		dst = int64(src)
+	case int32:
+		dst = int64(src)
+	case int64:
+		dst = src
+	case uint:
+		dst = int64(src)
+	case uint8:
+		dst = int64(src)
+	case uint16:
+		dst = int64(src)
+	case uint32:
+		dst = int64(src)
+	case uint64:
+		dst = int64(src)
+	case uintptr:
+		dst = int64(src)
+	case time.Duration:
+		dst = int64(src / time.Millisecond)
+	case time.Time:
+		dst = src.Unix()
+	case fmt.Stringer:
+		dst, err = parseInt64(src.String())
+	default:
+		err = fmt.Errorf("cast.ToInt64: unsupport to convert %T to int64", any)
+	}
+	return
+}
+
+func parseInt64(src string) (dst int64, err error) {
+	if src != "" {
+		dst, err = strconv.ParseInt(src, 0, 64)
+	}
+	return
+}
+
+// ToUint64 converts any to a uint64 value.
+func ToUint64(any interface{}) (dst uint64, err error) {
+	any = indirect(any)
+	if ToUint64Hook != nil {
+		return ToUint64Hook(any)
+	}
+
+	switch src := any.(type) {
+	case nil:
+	case bool:
+		if src {
+			dst = 1
+		}
+	case string:
+		dst, err = parseUint64(src)
+	case []byte:
+		dst, err = parseUint64(string(src))
+	case float32:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case float64:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case int:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case int8:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case int16:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case int32:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case int64:
+		if src < 0 {
+			return 0, errors.New("cannot convert a negative to uint64")
+		}
+		dst = uint64(src)
+	case uint:
+		dst = uint64(src)
+	case uint8:
+		dst = uint64(src)
+	case uint16:
+		dst = uint64(src)
+	case uint32:
+		dst = uint64(src)
+	case uint64:
+		dst = src
+	case uintptr:
+		dst = uint64(src)
+	case fmt.Stringer:
+		dst, err = parseUint64(src.String())
+	default:
+		err = fmt.Errorf("cast.ToUint64: unsupport to convert %T to uint64", any)
+	}
+	return
+}
+
+func parseUint64(src string) (dst uint64, err error) {
+	if src != "" {
+		dst, err = strconv.ParseUint(src, 0, 64)
+	}
+	return
+}
+
+// ToFloat64 converts any to a float64 value.
+func ToFloat64(any interface{}) (dst float64, err error) {
+	any = indirect(any)
+	if ToFloat64Hook != nil {
+		return ToFloat64Hook(any)
+	}
+
+	switch src := any.(type) {
+	case nil:
+	case bool:
+		if src {
+			dst = 1
+		}
+	case string:
+		dst, err = parseFloat64(src)
+	case []byte:
+		dst, err = parseFloat64(string(src))
+	case float32:
+		dst = float64(src)
+	case float64:
+		dst = src
+	case int:
+		dst = float64(src)
+	case int8:
+		dst = float64(src)
+	case int16:
+		dst = float64(src)
+	case int32:
+		dst = float64(src)
+	case int64:
+		dst = float64(src)
+	case uint:
+		dst = float64(src)
+	case uint8:
+		dst = float64(src)
+	case uint16:
+		dst = float64(src)
+	case uint32:
+		dst = float64(src)
+	case uint64:
+		dst = float64(src)
+	case uintptr:
+		dst = float64(src)
+	case fmt.Stringer:
+		dst, err = parseFloat64(src.String())
+	default:
+		err = fmt.Errorf("cast.ToFloat64: unsupport to convert %T to float64", any)
+	}
+	return
+}
+
+func parseFloat64(src string) (dst float64, err error) {
+	if src != "" {
+		dst, err = strconv.ParseFloat(src, 64)
+	}
+	return
+}
+
+// ToDuration converts any to a time.Duration value.
+func ToDuration(any interface{}) (dst time.Duration, err error) {
+	any = indirect(any)
+	if ToDurationHook != nil {
+		return ToDurationHook(any)
+	}
+
+	switch src := any.(type) {
+	case nil:
+	case string:
+		dst, err = parseDuration(src)
+	case []byte:
+		dst, err = parseDuration(string(src))
+	case float32:
+		dst = time.Duration(src) * time.Millisecond
+	case float64:
+		dst = time.Duration(src) * time.Millisecond
+	case int:
+		dst = time.Duration(src) * time.Millisecond
+	case int8:
+		dst = time.Duration(src) * time.Millisecond
+	case int16:
+		dst = time.Duration(src) * time.Millisecond
+	case int32:
+		dst = time.Duration(src) * time.Millisecond
+	case int64:
+		dst = time.Duration(src) * time.Millisecond
+	case uint:
+		dst = time.Duration(src) * time.Millisecond
+	case uint8:
+		dst = time.Duration(src) * time.Millisecond
+	case uint16:
+		dst = time.Duration(src) * time.Millisecond
+	case uint32:
+		dst = time.Duration(src) * time.Millisecond
+	case uint64:
+		dst = time.Duration(src) * time.Millisecond
+	case uintptr:
+		dst = time.Duration(src) * time.Millisecond
+	case time.Duration:
+		dst = src
+	case fmt.Stringer:
+		dst, err = parseDuration(src.String())
+	default:
+		err = fmt.Errorf("cast.ToDuration: unsupport to convert %T to time.Duration", any)
+	}
+	return
+}
+
+func parseDuration(src string) (dst time.Duration, err error) {
+	_len := len(src)
+	if _len == 0 {
+		return
+	}
+
+	switch src[_len-1] {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		var i int64
+		i, err = strconv.ParseInt(src, 10, 64)
+		dst = time.Duration(i) * time.Millisecond
+	default:
+		dst, err = time.ParseDuration(src)
+	}
+
+	return
+}
+
+// ToTime is a convenient function, which is equal to ToTimeInLocation(any, nil).
+func ToTime(any interface{}) (dst time.Time, err error) {
+	return ToTimeInLocation(any, nil)
+}
+
+// ToTimeInLocation converts any to a time.Time value.
 //
-// If giving layout, it will use it, or attempt to guess it by using
-// a predefined list of formats.
+// If loc is nil, use defaults.TimeLocation instead.
+// If any is a string-like, use TryParseTime to parse it with layouts.
+func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error) {
+	if loc == nil {
+		loc = defaults.TimeLocation.Get()
+	}
+
+	any = indirect(any)
+	if ToTimeHook != nil {
+		if len(layouts) == 0 {
+			layouts = defaults.TimeFormats.Get()
+		}
+		return ToTimeHook(any, loc, layouts...)
+	}
+
+	switch src := any.(type) {
+	case nil:
+		dst = dst.In(loc)
+	case string:
+		dst, err = TryParseTime(src, loc, layouts...)
+	case []byte:
+		dst, err = TryParseTime(string(src), loc, layouts...)
+	case float32:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case float64:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case int:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case int32:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case int64:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case uint:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case uint32:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case uint64:
+		dst = time.Unix(int64(src), 0).In(loc)
+	case time.Time:
+		dst = src.In(loc)
+	case fmt.Stringer:
+		dst, err = TryParseTime(src.String(), loc, layouts...)
+	default:
+		err = fmt.Errorf("cast.ToTimeInLocation: unsupport to convert %T to time.Time", any)
+	}
+
+	return
+}
+
+func isIntegerString(s string) bool {
+	for i, _len := 0, len(s); i < _len; i++ {
+		switch s[i] {
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// TryParseTime tries to parse the string value with the layouts in turn to time.Time.
 //
-// Notice: for the given layouts, they will be retried in turn.
-func StringToTimeInLocation(loc *time.Location, s string, layouts ...string) (time.Time, error) {
-	return stringToTime(loc, s, layouts...)
-}
+// If loc is nil, use defaults.TimeLocation instead.
+// If layouts is empty, use defaults.TimeFormats instead.
+// If value is a integer string, it will be parsee as the unix timestamp.
+func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Time, error) {
+	if loc == nil {
+		loc = defaults.TimeLocation.Get()
+	}
 
-// StringToTime is equal to StringToTimeInLocation(time.Local, s, layouts...).
-func StringToTime(s string, layouts ...string) (t time.Time, err error) {
-	return StringToTimeInLocation(time.Local, s, layouts...)
-}
-
-func stringToTime(loc *time.Location, s string, layouts ...string) (time.Time, error) {
-	if s == "" || s == "0000-00-00 00:00:00" {
+	switch value {
+	case "", "0000-00-00 00:00:00", "0000-00-00 00:00:00.000", "0000-00-00 00:00:00.000000":
 		return time.Time{}.In(loc), nil
 	}
+
+	if isIntegerString(value) {
+		i, err := strconv.ParseInt(value, 10, 64)
+		return time.Unix(i, 0).In(loc), err
+	}
+
 	if len(layouts) == 0 {
-		layouts = Layouts
+		layouts = defaults.TimeFormats.Get()
+		if len(layouts) == 0 {
+			panic("TryParseTime: no time format layouts")
+		}
 	}
 
 	for _, layout := range layouts {
-		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
+		if t, err := time.ParseInLocation(layout, value, loc); err == nil {
 			return t, nil
 		}
 	}
-	return time.Time{}, fmt.Errorf("unable to parse time: '%s'", s)
-}
 
-// ToTimeInLocation does the best to convert any certain value to time.Time.
-//
-// If value is a string or []byte, it uses StringToTimeInLocation to convert it
-// with loc. For others, it sets the location of the result time.Time to loc.
-func ToTimeInLocation(loc *time.Location, v interface{}, layout ...string) (time.Time, error) {
-	return toTime(loc, v, layout...)
-}
-
-// ToTime is equal to ToTimeInLocation(time.Local, value, layout...).
-func ToTime(value interface{}, layout ...string) (time.Time, error) {
-	return toTime(time.Local, value, layout...)
-}
-
-func toTime(loc *time.Location, value interface{}, layout ...string) (time.Time, error) {
-	value = indirect(value)
-
-	switch v := value.(type) {
-	case nil:
-		return time.Time{}.In(loc), nil
-	case time.Time:
-		return v.In(loc), nil
-	case int:
-		return time.Unix(int64(v), 0).In(loc), nil
-	case int64:
-		return time.Unix(v, 0).In(loc), nil
-	case int32:
-		return time.Unix(int64(v), 0).In(loc), nil
-	case uint:
-		return time.Unix(int64(v), 0).In(loc), nil
-	case uint64:
-		return time.Unix(int64(v), 0).In(loc), nil
-	case uint32:
-		return time.Unix(int64(v), 0).In(loc), nil
-	case string:
-		return StringToTimeInLocation(loc, v, layout...)
-	case []byte:
-		if len(v) == 0 {
-			return time.Time{}.In(loc), nil
-		}
-		return StringToTimeInLocation(loc, string(v), layout...)
-	case fmt.Stringer:
-		return StringToTimeInLocation(loc, v.String(), layout...)
-	default:
-		return time.Time{}, fmt.Errorf("unable to cast %#v of type %T to time.Time", v, v)
-	}
-}
-
-// ToDuration casts an interface to a time.Duration type.
-func ToDuration(value interface{}) (time.Duration, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case time.Duration:
-		return v, nil
-	case int, int64, int32, int16, int8, uint, uint64, uint32, uint16, uint8, float32, float64:
-		i, _ := ToInt64(value)
-		return time.Duration(i), nil
-	case string:
-		s = v
-	case []byte:
-		s = string(v)
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to Duration", v, v)
-	}
-
-	if strings.ContainsAny(s, "nsuµmh") {
-		return time.ParseDuration(s)
-	}
-	return time.ParseDuration(s + "ns")
-}
-
-// ToBool does the best to convert any certain value to bool.
-//
-// For the byte slice, []byte{'\x00'} and []byte{'\x01'} are recognized
-// as "0" and "1", and others are converted to a string.
-//
-// For the string, the true value is
-//
-//	"t", "T", "1", "on", "On", "ON", "true", "True", "TRUE", "yes", "Yes", "YES"
-//
-// the false value is
-//
-//	"f", "F", "0", "off", "Off", "OFF", "false", "False", "FALSE", "no", "No", "NO", ""
-//
-// For other types, if the value is ZERO of the type, it's false. Or it's true.
-func ToBool(value interface{}) (bool, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return false, nil
-	case bool:
-		return v, nil
-	case []byte:
-		switch len(v) {
-		case 0:
-			return false, nil
-		case 1:
-			switch v[0] {
-			case '\x00':
-				return false, nil
-			case '\x01':
-				return true, nil
-			}
-		}
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		ok, _ := template.IsTrue(v)
-		return ok, nil
-	}
-
-	switch s {
-	case "t", "T", "1", "on", "On", "ON", "true", "True", "TRUE", "yes", "Yes", "YES":
-		return true, nil
-	case "f", "F", "0", "off", "Off", "OFF", "false", "False", "FALSE", "no", "No", "NO", "":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unrecognized bool string: %s", s)
-	}
-}
-
-// ToFloat64 does the best to convert any certain value to float64.
-func ToFloat64(value interface{}) (float64, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return float64(v), nil
-	case int8:
-		return float64(v), nil
-	case int16:
-		return float64(v), nil
-	case int32:
-		return float64(v), nil
-	case int64:
-		return float64(v), nil
-	case uint:
-		return float64(v), nil
-	case uint8:
-		return float64(v), nil
-	case uint16:
-		return float64(v), nil
-	case uint32:
-		return float64(v), nil
-	case uint64:
-		return float64(v), nil
-	case float32:
-		return float64(v), nil
-	case float64:
-		return v, nil
-	case complex64:
-		return float64(real(v)), nil
-	case complex128:
-		return real(v), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to float64", v, v)
-	}
-
-	if f, err := strconv.ParseFloat(s, 64); err == nil {
-		return f, nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to float64", value, value)
-}
-
-// ToFloat32 does the best to convert any certain value to float32.
-func ToFloat32(value interface{}) (float32, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return float32(v), nil
-	case int8:
-		return float32(v), nil
-	case int16:
-		return float32(v), nil
-	case int32:
-		return float32(v), nil
-	case int64:
-		return float32(v), nil
-	case uint:
-		return float32(v), nil
-	case uint8:
-		return float32(v), nil
-	case uint16:
-		return float32(v), nil
-	case uint32:
-		return float32(v), nil
-	case uint64:
-		return float32(v), nil
-	case float32:
-		return v, nil
-	case float64:
-		return float32(v), nil
-	case complex64:
-		return float32(real(v)), nil
-	case complex128:
-		return float32(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to float32", v, v)
-	}
-
-	if f, err := strconv.ParseFloat(s, 32); err == nil {
-		return float32(f), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to float32", value, value)
-}
-
-// ToInt does the best to convert any certain value to int.
-func ToInt(value interface{}) (int, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return v, nil
-	case int8:
-		return int(v), nil
-	case int16:
-		return int(v), nil
-	case int32:
-		return int(v), nil
-	case int64:
-		return int(v), nil
-	case uint:
-		return int(v), nil
-	case uint8:
-		return int(v), nil
-	case uint16:
-		return int(v), nil
-	case uint32:
-		return int(v), nil
-	case uint64:
-		return int(v), nil
-	case float32:
-		return int(v), nil
-	case float64:
-		return int(v), nil
-	case complex64:
-		return int(real(v)), nil
-	case complex128:
-		return int(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to int", v, v)
-	}
-
-	if i, err := strconv.ParseInt(s, 0, 64); err == nil {
-		return int(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to int", value, value)
-}
-
-// ToInt8 does the best to convert any certain value to int8.
-func ToInt8(value interface{}) (int8, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return int8(v), nil
-	case int8:
-		return v, nil
-	case int16:
-		return int8(v), nil
-	case int32:
-		return int8(v), nil
-	case int64:
-		return int8(v), nil
-	case uint:
-		return int8(v), nil
-	case uint8:
-		return int8(v), nil
-	case uint16:
-		return int8(v), nil
-	case uint32:
-		return int8(v), nil
-	case uint64:
-		return int8(v), nil
-	case float32:
-		return int8(v), nil
-	case float64:
-		return int8(v), nil
-	case complex64:
-		return int8(real(v)), nil
-	case complex128:
-		return int8(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to int8", v, v)
-	}
-
-	if i, err := strconv.ParseInt(s, 0, 8); err == nil {
-		return int8(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to int8", value, value)
-}
-
-// ToInt16 does the best to convert any certain value to int16.
-func ToInt16(value interface{}) (int16, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return int16(v), nil
-	case int8:
-		return int16(v), nil
-	case int16:
-		return v, nil
-	case int32:
-		return int16(v), nil
-	case int64:
-		return int16(v), nil
-	case uint:
-		return int16(v), nil
-	case uint8:
-		return int16(v), nil
-	case uint16:
-		return int16(v), nil
-	case uint32:
-		return int16(v), nil
-	case uint64:
-		return int16(v), nil
-	case float32:
-		return int16(v), nil
-	case float64:
-		return int16(v), nil
-	case complex64:
-		return int16(real(v)), nil
-	case complex128:
-		return int16(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to int16", v, v)
-	}
-
-	if i, err := strconv.ParseInt(s, 0, 16); err == nil {
-		return int16(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to int16", value, value)
-}
-
-// ToInt32 does the best to convert any certain value to int32.
-func ToInt32(value interface{}) (int32, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return int32(v), nil
-	case int8:
-		return int32(v), nil
-	case int16:
-		return int32(v), nil
-	case int32:
-		return v, nil
-	case int64:
-		return int32(v), nil
-	case uint:
-		return int32(v), nil
-	case uint8:
-		return int32(v), nil
-	case uint16:
-		return int32(v), nil
-	case uint32:
-		return int32(v), nil
-	case uint64:
-		return int32(v), nil
-	case float32:
-		return int32(v), nil
-	case float64:
-		return int32(v), nil
-	case complex64:
-		return int32(real(v)), nil
-	case complex128:
-		return int32(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to int32", v, v)
-	}
-
-	if i, err := strconv.ParseInt(s, 0, 32); err == nil {
-		return int32(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to int32", value, value)
-}
-
-// ToInt64 does the best to convert any certain value to int64.
-func ToInt64(value interface{}) (int64, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		return int64(v), nil
-	case int8:
-		return int64(v), nil
-	case int16:
-		return int64(v), nil
-	case int32:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	case uint:
-		return int64(v), nil
-	case uint8:
-		return int64(v), nil
-	case uint16:
-		return int64(v), nil
-	case uint32:
-		return int64(v), nil
-	case uint64:
-		return int64(v), nil
-	case float32:
-		return int64(v), nil
-	case float64:
-		return int64(v), nil
-	case complex64:
-		return int64(real(v)), nil
-	case complex128:
-		return int64(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to int64", v, v)
-	}
-
-	if i, err := strconv.ParseInt(s, 0, 64); err == nil {
-		return i, nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to int64", value, value)
-}
-
-// ToUint does the best to convert any certain value to uint.
-func ToUint(value interface{}) (uint, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case int8:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case int16:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case int32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case int64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case uint:
-		return v, nil
-	case uint8:
-		return uint(v), nil
-	case uint16:
-		return uint(v), nil
-	case uint32:
-		return uint(v), nil
-	case uint64:
-		return uint(v), nil
-	case float32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case float64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint(v), nil
-	case complex64:
-		return uint(real(v)), nil
-	case complex128:
-		return uint(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to uint", v, v)
-	}
-
-	if i, err := strconv.ParseUint(s, 0, 64); err == nil {
-		return uint(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to uint", value, value)
-}
-
-// ToUint8 does the best to convert any certain value to uint8.
-func ToUint8(value interface{}) (uint8, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case int8:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case int16:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case int32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case int64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case uint:
-		return uint8(v), nil
-	case uint8:
-		return v, nil
-	case uint16:
-		return uint8(v), nil
-	case uint32:
-		return uint8(v), nil
-	case uint64:
-		return uint8(v), nil
-	case float32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case float64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint8(v), nil
-	case complex64:
-		return uint8(real(v)), nil
-	case complex128:
-		return uint8(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to uint8", v, v)
-	}
-
-	if i, err := strconv.ParseUint(s, 0, 8); err == nil {
-		return uint8(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to uint8", value, value)
-}
-
-// ToUint16 does the best to convert any certain value to uint16.
-func ToUint16(value interface{}) (uint16, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case int8:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case int16:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case int32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case int64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case uint:
-		return uint16(v), nil
-	case uint8:
-		return uint16(v), nil
-	case uint16:
-		return v, nil
-	case uint32:
-		return uint16(v), nil
-	case uint64:
-		return uint16(v), nil
-	case float32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case float64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint16(v), nil
-	case complex64:
-		return uint16(real(v)), nil
-	case complex128:
-		return uint16(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to uint16", v, v)
-	}
-
-	if i, err := strconv.ParseUint(s, 0, 16); err == nil {
-		return uint16(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to uint16", value, value)
-}
-
-// ToUint32 does the best to convert any certain value to uint32.
-func ToUint32(value interface{}) (uint32, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case int8:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case int16:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case int32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case int64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case uint:
-		return uint32(v), nil
-	case uint8:
-		return uint32(v), nil
-	case uint16:
-		return uint32(v), nil
-	case uint32:
-		return v, nil
-	case uint64:
-		return uint32(v), nil
-	case float32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case float64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint32(v), nil
-	case complex64:
-		return uint32(real(v)), nil
-	case complex128:
-		return uint32(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to uint32", v, v)
-	}
-
-	if i, err := strconv.ParseUint(s, 0, 32); err == nil {
-		return uint32(i), nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to uint32", value, value)
-}
-
-// ToUint64 does the best to convert any certain value to uint64.
-func ToUint64(value interface{}) (uint64, error) {
-	value = indirect(value)
-
-	var s string
-	switch v := value.(type) {
-	case nil:
-		return 0, nil
-	case bool:
-		if v {
-			return 1, nil
-		}
-		return 0, nil
-	case int:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case int8:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case int16:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case int32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case int64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case uint:
-		return uint64(v), nil
-	case uint8:
-		return uint64(v), nil
-	case uint16:
-		return uint64(v), nil
-	case uint32:
-		return uint64(v), nil
-	case uint64:
-		return v, nil
-	case float32:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case float64:
-		if v < 0 {
-			return 0, errNegativeNotAllowed
-		}
-		return uint64(v), nil
-	case complex64:
-		return uint64(real(v)), nil
-	case complex128:
-		return uint64(real(v)), nil
-	case []byte:
-		s = string(v)
-	case string:
-		s = v
-	case fmt.Stringer:
-		s = v.String()
-	default:
-		return 0, fmt.Errorf("unable to cast %#v of type %T to uint64", v, v)
-	}
-
-	if i, err := strconv.ParseUint(s, 0, 64); err == nil {
-		return i, nil
-	}
-	return 0, fmt.Errorf("unable to cast %#v of type %T to uint64", value, value)
-}
-
-// ToString does the best to convert any certain value to string.
-//
-// For time.Time, it will use time.RFC3339Nano to format it.
-func ToString(value interface{}) (string, error) {
-	value = indirect(value)
-
-	switch v := value.(type) {
-	case nil:
-		return "", nil
-	case string:
-		return v, nil
-	case []byte:
-		return string(v), nil
-	case bool:
-		return strconv.FormatBool(v), nil
-	case int:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int8:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int16:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int32:
-		return strconv.FormatInt(int64(v), 10), nil
-	case int64:
-		return strconv.FormatInt(v, 10), nil
-	case uint:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint8:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint16:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint32:
-		return strconv.FormatUint(uint64(v), 10), nil
-	case uint64:
-		return strconv.FormatUint(v, 10), nil
-	case float32:
-		return strconv.FormatFloat(float64(v), 'f', -1, 32), nil
-	case float64:
-		return strconv.FormatFloat(v, 'f', -1, 64), nil
-	case error:
-		return v.Error(), nil
-	case time.Time:
-		return v.Format(time.RFC3339Nano), nil
-	case template.HTML:
-		return string(v), nil
-	case template.URL:
-		return string(v), nil
-	case template.JS:
-		return string(v), nil
-	case template.CSS:
-		return string(v), nil
-	case template.HTMLAttr:
-		return string(v), nil
-	case fmt.Stringer:
-		return v.String(), nil
-	default:
-		return "", fmt.Errorf("unable to cast %#v of type %T to string", v, v)
-	}
-}
-
-// ToStringMapBool casts an interface to a map[string]bool type.
-func ToStringMapBool(value interface{}) (m map[string]bool, err error) {
-	m = make(map[string]bool)
-
-	switch v := value.(type) {
-	case map[interface{}]interface{}:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			if m[key], err = ToBool(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]interface{}:
-		for k, val := range v {
-			if m[k], err = ToBool(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]bool:
-		return v, nil
-	case []byte:
-		err = json.Unmarshal(v, &m)
-		return
-	case string:
-		err = json.Unmarshal([]byte(v), &m)
-		return
-	case nil:
-		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]bool", v, v)
-	default:
-		if reflect.TypeOf(v).Kind() != reflect.Map {
-			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]bool", v, v)
-		}
-
-		vf := reflect.ValueOf(v)
-		for _, keyVal := range vf.MapKeys() {
-			val, _err := ToBool(vf.MapIndex(keyVal).Interface())
-			if _err != nil {
-				err = fmt.Errorf("unable to cast %#v of type %T to map[string]bool", v, v)
-				return
-			}
-			m[keyVal.Interface().(string)] = val
-		}
-		return m, nil
-	}
-}
-
-// ToStringMapInt casts an interface to a map[string]int type.
-func ToStringMapInt(value interface{}) (m map[string]int, err error) {
-	m = make(map[string]int)
-
-	switch v := value.(type) {
-	case map[interface{}]interface{}:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			if m[key], err = ToInt(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]interface{}:
-		for k, val := range v {
-			if m[k], err = ToInt(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]int:
-		return v, nil
-	case []byte:
-		err = json.Unmarshal(v, &m)
-		return
-	case string:
-		err = json.Unmarshal([]byte(v), &m)
-		return
-	case nil:
-		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]int", v, v)
-	default:
-		if reflect.TypeOf(v).Kind() != reflect.Map {
-			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]int", v, v)
-		}
-
-		vf := reflect.ValueOf(v)
-		for _, keyVal := range vf.MapKeys() {
-			val, _err := ToInt(vf.MapIndex(keyVal).Interface())
-			if _err != nil {
-				err = fmt.Errorf("unable to cast %#v of type %T to map[string]int", v, v)
-				return
-			}
-			m[keyVal.Interface().(string)] = val
-		}
-		return m, nil
-	}
-}
-
-// ToStringMapInt64 casts an interface to a map[string]int64 type.
-func ToStringMapInt64(value interface{}) (m map[string]int64, err error) {
-	m = make(map[string]int64)
-
-	switch v := value.(type) {
-	case map[interface{}]interface{}:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			if m[key], err = ToInt64(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]interface{}:
-		for k, val := range v {
-			if m[k], err = ToInt64(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[string]int64:
-		return v, nil
-	case []byte:
-		err = json.Unmarshal(v, &m)
-		return
-	case string:
-		err = json.Unmarshal([]byte(v), &m)
-		return
-	case nil:
-		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]int64", v, v)
-	default:
-		if reflect.TypeOf(v).Kind() != reflect.Map {
-			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]int64", v, v)
-		}
-
-		vf := reflect.ValueOf(v)
-		for _, keyVal := range vf.MapKeys() {
-			val, _err := ToInt64(vf.MapIndex(keyVal).Interface())
-			if _err != nil {
-				err = fmt.Errorf("unable to cast %#v of type %T to map[string]int64", v, v)
-				return
-			}
-			m[keyVal.Interface().(string)] = val
-		}
-		return m, nil
-	}
-}
-
-// ToStringMapString casts an interface to a map[string]string type.
-func ToStringMapString(value interface{}) (m map[string]string, err error) {
-	m = make(map[string]string)
-
-	switch v := value.(type) {
-	case map[string]string:
-		return v, nil
-	case map[string]interface{}:
-		for k, val := range v {
-			if m[k], err = ToString(val); err != nil {
-				return
-			}
-		}
-		return
-	case map[interface{}]string:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			m[key] = val
-		}
-		return
-	case map[interface{}]interface{}:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			if m[key], err = ToString(val); err != nil {
-				return
-			}
-		}
-		return
-	case []byte:
-		err = json.Unmarshal(v, &m)
-		return
-	case string:
-		err = json.Unmarshal([]byte(v), &m)
-		return
-	case nil:
-		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
-	default:
-		if reflect.TypeOf(v).Kind() != reflect.Map {
-			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
-		}
-
-		vf := reflect.ValueOf(v)
-		for _, keyVal := range vf.MapKeys() {
-			val, _err := ToString(vf.MapIndex(keyVal).Interface())
-			if _err != nil {
-				err = fmt.Errorf("unable to cast %#v of type %T to map[string]string", v, v)
-				return
-			}
-			m[keyVal.Interface().(string)] = val
-		}
-		return m, nil
-	}
-}
-
-// ToStringMap casts an interface to a map[string]interface{} type.
-func ToStringMap(value interface{}) (m map[string]interface{}, err error) {
-	m = make(map[string]interface{})
-
-	switch v := value.(type) {
-	case map[interface{}]interface{}:
-		for k, val := range v {
-			key, e := ToString(k)
-			if e != nil {
-				return m, e
-			}
-			m[key] = val
-		}
-		return
-	case map[string]interface{}:
-		return v, nil
-	case map[string]string:
-		for k, val := range v {
-			m[k] = val
-		}
-		return
-	case []byte:
-		err = json.Unmarshal(v, &m)
-		return
-	case string:
-		err = json.Unmarshal([]byte(v), &m)
-		return
-	case nil:
-		return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]interface{}", v, v)
-	default:
-		if reflect.TypeOf(v).Kind() != reflect.Map {
-			return nil, fmt.Errorf("unable to cast %#v of type %T to map[string]interface{}", v, v)
-		}
-
-		vf := reflect.ValueOf(v)
-		for _, keyVal := range vf.MapKeys() {
-			m[keyVal.Interface().(string)] = vf.MapIndex(keyVal).Interface()
-		}
-		return m, nil
-	}
-}
-
-// ToMapKeys returns all the keys of a map.
-//
-// If the value is not a map or the key is not string, it returns an error.
-// But if the value is nil, it will return a empty slice, not an error instead.
-//
-// If you ensure that v is a map, and its key is the string type, you can ignore
-// the error.
-//
-// For map[string]interface{}, map[string]string and map[string]int, they have
-// already been optimized.
-func ToMapKeys(v interface{}) ([]string, error) {
-	switch _v := v.(type) {
-	case nil:
-		return []string{}, nil
-	case map[string]interface{}:
-		results := make([]string, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	case map[string]string:
-		results := make([]string, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	case map[string]int:
-		results := make([]string, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	}
-
-	_v := reflect.ValueOf(v)
-	if !_v.IsValid() || _v.Kind() != reflect.Map {
-		return nil, errNotMap
-	}
-
-	results := make([]string, _v.Len())
-	for i, key := range _v.MapKeys() {
-		if key.Kind() != reflect.String {
-			return nil, errNotString
-		}
-		results[i] = key.String()
-	}
-	return results, nil
-}
-
-// ToMapValues returns all the values of a map.
-//
-// If the value is not a map, it returns an error.
-// But if the value is nil, it will return a empty slice, not an error instead.
-//
-// If you ensure that v is a map, you can ignore the error.
-//
-// For map[string]interface{}, map[string]string and map[string]int, they have
-// already been optimized.
-func ToMapValues(v interface{}) ([]interface{}, error) {
-	switch _v := v.(type) {
-	case nil:
-		return []interface{}{}, nil
-	case map[string]interface{}:
-		results := make([]interface{}, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	case map[string]string:
-		results := make([]interface{}, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	case map[string]int:
-		results := make([]interface{}, len(_v))
-		for k := range _v {
-			results = append(results, k)
-		}
-		return results, nil
-	}
-
-	_v := reflect.ValueOf(v)
-	if !_v.IsValid() || _v.Kind() != reflect.Map {
-		return nil, errNotMap
-	}
-
-	results := make([]interface{}, _v.Len())
-	for i, key := range _v.MapKeys() {
-		results[i] = _v.MapIndex(key).Interface()
-	}
-	return results, nil
-}
-
-// ToSlice converts any slice type of []interface{}.
-func ToSlice(value interface{}) ([]interface{}, error) {
-	switch vs := value.(type) {
-	case nil:
-		return []interface{}{}, nil
-	case []interface{}:
-		return vs, nil
-	case []string:
-		results := make([]interface{}, len(vs))
-		for i, v := range vs {
-			results[i] = v
-		}
-		return results, nil
-	case []int:
-		results := make([]interface{}, len(vs))
-		for i, v := range vs {
-			results[i] = v
-		}
-		return results, nil
-	}
-
-	vf := reflect.ValueOf(value)
-	if kind := vf.Kind(); kind != reflect.Slice && kind != reflect.Array {
-		return nil, fmt.Errorf("unable to cast %#v of type %T to []interface{}", value, value)
-	}
-
-	results := make([]interface{}, vf.Len())
-	for i, _len := 0, vf.Len(); i < _len; i++ {
-		results[i] = vf.Index(i).Interface()
-	}
-	return results, nil
-}
-
-// ToBoolSlice casts an interface to a []bool type.
-func ToBoolSlice(value interface{}) ([]bool, error) {
-	switch v := value.(type) {
-	case nil:
-		return []bool{}, nil
-	case []bool:
-		return v, nil
-	case []int:
-		vs := make([]bool, len(v))
-		for i, _v := range v {
-			if _v == 0 {
-				vs[i] = false
-			} else {
-				vs[i] = true
-			}
-		}
-		return vs, nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]bool, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToBool(vf.Index(i).Interface()); err != nil {
-				return []bool{}, fmt.Errorf("unable to cast %#v of type %T to []bool", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		return []bool{}, fmt.Errorf("unable to cast %#v of type %T to []bool", value, value)
-	}
-}
-
-// ToIntSlice casts an interface to a []int type.
-func ToIntSlice(value interface{}) ([]int, error) {
-	switch v := value.(type) {
-	case nil:
-		return []int{}, nil
-	case []int:
-		return v, nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]int, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToInt(vf.Index(i).Interface()); err != nil {
-				return []int{}, fmt.Errorf("unable to cast %#v of type %T to []int", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		return []int{}, fmt.Errorf("unable to cast %#v of type %T to []int", value, value)
-	}
-}
-
-// ToUintSlice casts an interface to a []uint type.
-func ToUintSlice(value interface{}) ([]uint, error) {
-	switch v := value.(type) {
-	case nil:
-		return []uint{}, nil
-	case []uint:
-		return v, nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]uint, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToUint(vf.Index(i).Interface()); err != nil {
-				return []uint{}, fmt.Errorf("unable to cast %#v of type %T to []uint", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		return []uint{}, fmt.Errorf("unable to cast %#v of type %T to []uint", value, value)
-	}
-}
-
-// ToFloat64Slice casts an interface to a []float64 type.
-func ToFloat64Slice(value interface{}) ([]float64, error) {
-	switch v := value.(type) {
-	case nil:
-		return []float64{}, nil
-	case []float64:
-		return v, nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]float64, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToFloat64(vf.Index(i).Interface()); err != nil {
-				return []float64{}, fmt.Errorf("unable to cast %#v of type %T to []float64", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		return []float64{}, fmt.Errorf("unable to cast %#v of type %T to []float64", value, value)
-	}
-}
-
-// StringSeparator is the separator of the string slice to split the string.
-var StringSeparator = ""
-
-func isStringSeparator(r rune) bool {
-	for _, c := range StringSeparator {
-		if c == r {
-			return true
-		}
-	}
-	return false
-}
-
-func getStringSlice(s string) []string {
-	if StringSeparator == "" {
-		return strings.Fields(s)
-	}
-	return strings.FieldsFunc(s, isStringSeparator)
-}
-
-// ToStringSlice casts an interface to a []string type.
-//
-// If value is string and the global variable StringSeparator is not "",
-// the value will be split into []string by the string separator.
-func ToStringSlice(value interface{}) ([]string, error) {
-	switch v := value.(type) {
-	case nil:
-		return []string{}, nil
-	case []interface{}:
-		ss := make([]string, len(v))
-		for i, _v := range v {
-			ss[i], _ = ToString(_v)
-		}
-		return ss, nil
-	case []string:
-		return v, nil
-	case string:
-		return getStringSlice(v), nil
-	case []byte:
-		return getStringSlice(string(v)), nil
-	case fmt.Stringer:
-		return getStringSlice(v.String()), nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]string, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToString(vf.Index(i).Interface()); err != nil {
-				return []string{}, fmt.Errorf("unable to cast %#v of type %T to []string", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		if s, err := ToString(value); err == nil {
-			return []string{s}, nil
-		}
-		return []string{}, fmt.Errorf("unable to cast %#v of type %T to []string", value, value)
-	}
-}
-
-// ToDurationSlice casts an interface to a []time.Duration type.
-func ToDurationSlice(value interface{}) ([]time.Duration, error) {
-	switch v := value.(type) {
-	case nil:
-		return []time.Duration{}, nil
-	case []time.Duration:
-		return v, nil
-	}
-
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.Slice, reflect.Array:
-		var err error
-		vf := reflect.ValueOf(value)
-		vs := make([]time.Duration, vf.Len())
-		for i, _len := 0, vf.Len(); i < _len; i++ {
-			if vs[i], err = ToDuration(vf.Index(i).Interface()); err != nil {
-				return []time.Duration{}, fmt.Errorf("unable to cast %#v of type %T to []time.Duration", value, value)
-			}
-		}
-		return vs, nil
-	default:
-		return []time.Duration{}, fmt.Errorf("unable to cast %#v of type %T to []time.Duration", value, value)
-	}
+	return time.Time{}, fmt.Errorf("unable to parse time '%s'", value)
 }

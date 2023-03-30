@@ -1,62 +1,36 @@
 # Go Type Cast [![Build Status](https://github.com/xgfone/cast/actions/workflows/go.yml/badge.svg)](https://github.com/xgfone/cast/actions/workflows/go.yml) [![GoDoc](https://pkg.go.dev/badge/github.com/xgfone/cast)](https://pkg.go.dev/github.com/xgfone/cast) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](https://raw.githubusercontent.com/xgfone/cast/master/LICENSE)
 
-The package supporting `Go1.7+` supplies some functions to convert the data between types, such as `ToXXX` and `MustToXXX`.
+Provide some functions, supporting `Go1.18+`, to convert the value between different types, such as `ToXXX`.
 
 ## Installation
 ```shell
 $ go get -u github.com/xgfone/cast
 ```
 
-## Usage
+## API
 
+#### Convert Function
 ```go
-// Bool
-boolval, _ := cast.ToBool("1")
-boolval, _ := cast.ToBool("0")
-boolval, _ := cast.ToBool("t")
-boolval, _ := cast.ToBool("f")
-boolval, _ := cast.ToBool("on")
-boolval, _ := cast.ToBool("off")
-boolval, _ := cast.ToBool("true")
-boolval, _ := cast.ToBool("false")
+func ToTime(any interface{}) (dst time.Time, err error)
+func ToBool(any interface{}) (dst bool, err error)
+func ToInt64(any interface{}) (dst int64, err error)
+func ToUint64(any interface{}) (dst uint64, err error)
+func ToFloat64(any interface{}) (dst float64, err error)
+func ToString(any interface{}) (dst string, err error)
+func ToDuration(any interface{}) (dst time.Duration, err error)
 
-// Int
-intval, _ := cast.ToInt("123")
-intval, _ := cast.ToInt(123)
-intval, _ := cast.ToInt(1.23)
+func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (time.Time, error)
+func MustToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) time.Time
+func MustParseTime(value string, loc *time.Location, layouts ...string) time.Time
+func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Time, error)
 
-// Int64
-int64val, _ := cast.ToInt64("123")
-int64val, _ := cast.ToInt64(123)
-int64val, _ := cast.ToInt64(1.23)
-
-// Uint
-uintval, _ := cast.ToUint("123")
-uintval, _ := cast.ToUint(123)
-uintval, _ := cast.ToUint(1.23)
-
-// Uint64
-uint64val, _ := cast.ToUint64("123")
-uint64val, _ := cast.ToUint64(123)
-uint64val, _ := cast.ToUint64(1.23)
-
-// Float64
-float64val, _ := cast.ToFloat64("123")
-float64val, _ := cast.ToFloat64("1.23")
-float64val, _ := cast.ToFloat64(123)
-float64val, _ := cast.ToFloat64(1.23)
-
-// String
-stringval, _ := cast.ToString("abc")
-stringval, _ := cast.ToString(123)
-stringval, _ := cast.ToString(1.23)
-stringval, _ := cast.ToString(true)
-stringval, _ := cast.ToString(false)
-
-// Time
-timeval, _ := cast.ToTime("2020-05-12 18:40:00")
-timeval, _ := cast.ToTime("2020-05-12T18:40:00Z")
-timeval, _ := cast.ToTime("2020-05-12T18:40:00+08:00")
-
-// ......
+// Must is the generic function and used by associating with ToXXX. For example,
+//   Must(ToBool(any))
+//   Must(ToInt64(any))
+//   Must(ToUint64(any))
+//   Must(ToFloat64(any))
+//   Must(ToString(any))
+//   Must(ToDuration(any))
+//   Must(ToTime(any))
+func Must[T any](value T, err error) T
 ```
