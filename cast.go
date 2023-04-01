@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/xgfone/defaults"
+	"github.com/xgfone/go-defaults"
 )
 
 // Define some hook functions to intercept the ToXXX conversion.
