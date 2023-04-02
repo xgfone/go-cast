@@ -168,6 +168,8 @@ func ToBoolPure(any interface{}) (dst bool, err error) {
 		dst = src != 0
 	case uintptr:
 		dst = src != 0
+	case interface{ Bool() bool }:
+		dst = src.Bool()
 	case fmt.Stringer:
 		dst, err = parseBool(src.String())
 	default:
@@ -341,6 +343,10 @@ func ToInt64Pure(any interface{}) (dst int64, err error) {
 		dst = src.Unix()
 	case *time.Time:
 		dst = src.Unix()
+	case interface{ Int64() int64 }:
+		dst = src.Int64()
+	case interface{ Int() int64 }:
+		dst = src.Int()
 	case fmt.Stringer:
 		dst, err = parseInt64(src.String())
 	default:
@@ -447,6 +453,10 @@ func ToUint64Pure(any interface{}) (dst uint64, err error) {
 		dst = src
 	case uintptr:
 		dst = uint64(src)
+	case interface{ Uint64() uint64 }:
+		dst = src.Uint64()
+	case interface{ Uint() uint64 }:
+		dst = src.Uint()
 	case fmt.Stringer:
 		dst, err = parseUint64(src.String())
 	default:
@@ -544,6 +554,10 @@ func ToFloat64Pure(any interface{}) (dst float64, err error) {
 		dst = float64(src) / float64(time.Second)
 	case *time.Duration:
 		dst = float64(*src) / float64(time.Second)
+	case interface{ Float64() float64 }:
+		dst = src.Float64()
+	case interface{ Float() float64 }:
+		dst = src.Float()
 	case fmt.Stringer:
 		dst, err = parseFloat64(src.String())
 	default:
@@ -629,6 +643,8 @@ func ToDurationPure(any interface{}) (dst time.Duration, err error) {
 		dst = src
 	case *time.Duration:
 		dst = *src
+	case interface{ Duration() time.Duration }:
+		dst = src.Duration()
 	case fmt.Stringer:
 		dst, err = parseDuration(src.String())
 	default:
@@ -718,6 +734,8 @@ func ToTimeInLocationPure(any interface{}, loc *time.Location, layouts ...string
 		dst = src.In(loc)
 	case *time.Time:
 		dst = src.In(loc)
+	case interface{ Time() time.Time }:
+		dst = src.Time()
 	case fmt.Stringer:
 		dst, err = TryParseTime(src.String(), loc, layouts...)
 	default:
