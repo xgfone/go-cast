@@ -540,6 +540,10 @@ func ToFloat64Pure(any interface{}) (dst float64, err error) {
 		dst = float64(src)
 	case uintptr:
 		dst = float64(src)
+	case time.Duration:
+		dst = float64(src) / float64(time.Second)
+	case *time.Duration:
+		dst = float64(*src) / float64(time.Second)
 	case fmt.Stringer:
 		dst, err = parseFloat64(src.String())
 	default:
@@ -596,9 +600,9 @@ func ToDurationPure(any interface{}) (dst time.Duration, err error) {
 	case []byte:
 		dst, err = parseDuration(string(src))
 	case float32:
-		dst = time.Duration(src) * time.Millisecond
+		dst = time.Duration(float64(src) * float64(time.Second))
 	case float64:
-		dst = time.Duration(src) * time.Millisecond
+		dst = time.Duration(src * float64(time.Second))
 	case int:
 		dst = time.Duration(src) * time.Millisecond
 	case int8:

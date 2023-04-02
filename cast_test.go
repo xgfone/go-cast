@@ -126,7 +126,7 @@ func ExampleToFloat64() {
 	fmt.Println(ToFloat64(789.0))
 	fmt.Println(ToFloat64(100))
 	fmt.Println(ToFloat64(String("200.0"))) // Use the method String()
-	// fmt.Println(ToFloat64(time.Second))              // unsupported
+	fmt.Println(ToFloat64(time.Second))     // N<s> => float64(N)
 	// fmt.Println(ToFloat64(time.Unix(1234567890, 0))) // unsupported
 
 	// Output:
@@ -139,6 +139,7 @@ func ExampleToFloat64() {
 	// 789 <nil>
 	// 100 <nil>
 	// 200 <nil>
+	// 1 <nil>
 }
 
 func ExampleToString() {
@@ -173,8 +174,8 @@ func ExampleToDuration() {
 	fmt.Println(ToDuration("2s"))   // Use time.ParseDuration
 	fmt.Println(ToDuration([]byte("3000")))
 	fmt.Println(ToDuration([]byte("4s")))
-	fmt.Println(ToDuration(5000.0)) // Use float as time.Millisecond
-	fmt.Println(ToDuration(6000))   // Use integer as time.Millisecond
+	fmt.Println(ToDuration(5.0))  // Use float as time.Second
+	fmt.Println(ToDuration(6000)) // Use integer as time.Millisecond
 	fmt.Println(ToDuration(time.Second))
 	fmt.Println(ToDuration(String("7000"))) // Use the method String() to be parsed as time.Millisecond
 	fmt.Println(ToDuration(String("8s")))   // Use the method String() to be parsed by time.ParseDurationParseDuration
