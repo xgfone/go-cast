@@ -15,6 +15,7 @@
 package cast
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -331,6 +332,7 @@ func TestSet(t *testing.T) {
 
 	var striface fmtStringer
 	testSet(t, reflect.ValueOf(&striface), "interface1", 123, newStringer(123))
+	testSet(t, reflect.ValueOf(&striface), "interface2", errors.New("test"), newStringer("test"))
 }
 
 func testSet(t *testing.T, result interface{}, prefix string, set, expect interface{}) {

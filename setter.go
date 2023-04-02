@@ -46,7 +46,6 @@ import (
 //   - interface sql.Scanner
 //   - interface { Set(interface{}) error }
 func Set(dst, src interface{}) (err error) {
-	src = indirect(src)
 	switch d := dst.(type) {
 	case nil:
 		return
@@ -181,7 +180,6 @@ func reflectSet(orig interface{}, dst reflect.Value, src interface{}) (err error
 		}
 	}
 
-	src = indirect(src)
 	switch dst.Kind() {
 	case reflect.Bool:
 		var v bool

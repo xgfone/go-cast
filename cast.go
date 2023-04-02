@@ -35,7 +35,7 @@ var (
 	ToTimeHook     func(src interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error)
 )
 
-func indirect(v interface{}) interface{} {
+func _indirect(v interface{}) interface{} {
 	if v == nil {
 		return nil
 	}
@@ -45,7 +45,7 @@ func indirect(v interface{}) interface{} {
 		if vf.IsNil() {
 			return nil
 		}
-		return indirect(vf.Elem().Interface())
+		return _indirect(vf.Elem().Interface())
 	default:
 		return v
 	}
@@ -53,7 +53,6 @@ func indirect(v interface{}) interface{} {
 
 // ToBool converts any to a bool value.
 func ToBool(any interface{}) (dst bool, err error) {
-	any = indirect(any)
 	if ToBoolHook != nil {
 		return ToBoolHook(any)
 	}
@@ -107,8 +106,38 @@ func ToBool(any interface{}) (dst bool, err error) {
 	case fmt.Stringer:
 		dst, err = parseBool(src.String())
 	default:
-		err = fmt.Errorf("cast.ToBool: unsupport to convert %T to bool", any)
+		dst, err = tryReflectToBool(reflect.ValueOf(any))
 	}
+	return
+}
+
+func tryReflectToBool(src reflect.Value) (dst bool, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToBool(src.Elem())
+		}
+
+	case reflect.Bool:
+		dst = src.Bool()
+
+	case reflect.String:
+		dst, err = parseBool(src.String())
+
+	case reflect.Float32, reflect.Float64:
+		dst = src.Float() != 0
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = src.Int() != 0
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = src.Uint() != 0
+
+	default:
+		err = fmt.Errorf("cast.ToBool: unsupport to convert %T to bool", src.Interface())
+	}
+
 	return
 }
 
@@ -121,7 +150,6 @@ func parseBool(src string) (dst bool, err error) {
 
 // ToString converts any to a string value.
 func ToString(any interface{}) (dst string, err error) {
-	any = indirect(any)
 	if ToStringHook != nil {
 		return ToStringHook(any)
 	}
@@ -162,19 +190,52 @@ func ToString(any interface{}) (dst string, err error) {
 		return strconv.FormatUint(uint64(src), 10), nil
 	case time.Time:
 		dst = src.Format(time.RFC3339Nano)
+	case *time.Time:
+		dst = src.Format(time.RFC3339Nano)
 	case error:
 		dst = src.Error()
 	case fmt.Stringer:
 		dst = src.String()
 	default:
-		err = fmt.Errorf("cast.ToString: unsupport to convert %T to string", any)
+		dst, err = tryReflectToString(reflect.ValueOf(any))
+	}
+	return
+}
+
+func tryReflectToString(src reflect.Value) (dst string, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToString(src.Elem())
+		}
+
+	case reflect.Bool:
+		dst = strconv.FormatBool(src.Bool())
+
+	case reflect.String:
+		dst = src.String()
+
+	case reflect.Float32:
+		dst = strconv.FormatFloat(src.Float(), 'f', -1, 32)
+
+	case reflect.Float64:
+		dst = strconv.FormatFloat(src.Float(), 'f', -1, 64)
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = strconv.FormatInt(src.Int(), 10)
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = strconv.FormatUint(src.Uint(), 10)
+
+	default:
+		err = fmt.Errorf("cast.ToString: unsupport to convert %T to string", src.Interface())
 	}
 	return
 }
 
 // ToInt64 converts any to a int64 value.
 func ToInt64(any interface{}) (dst int64, err error) {
-	any = indirect(any)
 	if ToInt64Hook != nil {
 		return ToInt64Hook(any)
 	}
@@ -217,13 +278,49 @@ func ToInt64(any interface{}) (dst int64, err error) {
 		dst = int64(src)
 	case time.Duration:
 		dst = int64(src / time.Millisecond)
+	case *time.Duration:
+		dst = int64(*src / time.Millisecond)
 	case time.Time:
+		dst = src.Unix()
+	case *time.Time:
 		dst = src.Unix()
 	case fmt.Stringer:
 		dst, err = parseInt64(src.String())
 	default:
-		err = fmt.Errorf("cast.ToInt64: unsupport to convert %T to int64", any)
+		dst, err = tryReflectToInt64(reflect.ValueOf(any))
 	}
+	return
+}
+
+func tryReflectToInt64(src reflect.Value) (dst int64, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToInt64(src.Elem())
+		}
+
+	case reflect.Bool:
+		if src.Bool() {
+			dst = 1
+		}
+
+	case reflect.String:
+		dst, err = parseInt64(src.String())
+
+	case reflect.Float32, reflect.Float64:
+		dst = int64(src.Float())
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = src.Int()
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = int64(src.Uint())
+
+	default:
+		err = fmt.Errorf("cast.ToInt64: unsupport to convert %T to int64", src.Interface())
+	}
+
 	return
 }
 
@@ -236,7 +333,6 @@ func parseInt64(src string) (dst int64, err error) {
 
 // ToUint64 converts any to a uint64 value.
 func ToUint64(any interface{}) (dst uint64, err error) {
-	any = indirect(any)
 	if ToUint64Hook != nil {
 		return ToUint64Hook(any)
 	}
@@ -301,8 +397,48 @@ func ToUint64(any interface{}) (dst uint64, err error) {
 	case fmt.Stringer:
 		dst, err = parseUint64(src.String())
 	default:
-		err = fmt.Errorf("cast.ToUint64: unsupport to convert %T to uint64", any)
+		dst, err = tryReflectToUint64(reflect.ValueOf(any))
 	}
+	return
+}
+
+func tryReflectToUint64(src reflect.Value) (dst uint64, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToUint64(src.Elem())
+		}
+
+	case reflect.Bool:
+		if src.Bool() {
+			dst = 1
+		}
+
+	case reflect.String:
+		dst, err = parseUint64(src.String())
+
+	case reflect.Float32, reflect.Float64:
+		if v := src.Float(); v < 0 {
+			err = errors.New("cannot convert a negative float to uint64")
+		} else {
+			dst = uint64(v)
+		}
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v := src.Int(); v < 0 {
+			err = errors.New("cannot convert a negative integer to uint64")
+		} else {
+			dst = uint64(v)
+		}
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = src.Uint()
+
+	default:
+		err = fmt.Errorf("cast.ToUint64: unsupport to convert %T to uint64", src.Interface())
+	}
+
 	return
 }
 
@@ -315,7 +451,6 @@ func parseUint64(src string) (dst uint64, err error) {
 
 // ToFloat64 converts any to a float64 value.
 func ToFloat64(any interface{}) (dst float64, err error) {
-	any = indirect(any)
 	if ToFloat64Hook != nil {
 		return ToFloat64Hook(any)
 	}
@@ -359,8 +494,40 @@ func ToFloat64(any interface{}) (dst float64, err error) {
 	case fmt.Stringer:
 		dst, err = parseFloat64(src.String())
 	default:
-		err = fmt.Errorf("cast.ToFloat64: unsupport to convert %T to float64", any)
+		dst, err = tryReflectToFloat64(reflect.ValueOf(any))
 	}
+	return
+}
+
+func tryReflectToFloat64(src reflect.Value) (dst float64, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToFloat64(src.Elem())
+		}
+
+	case reflect.Bool:
+		if src.Bool() {
+			dst = 1
+		}
+
+	case reflect.String:
+		dst, err = parseFloat64(src.String())
+
+	case reflect.Float32, reflect.Float64:
+		dst = src.Float()
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = float64(src.Int())
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = float64(src.Uint())
+
+	default:
+		err = fmt.Errorf("cast.ToFloat64: unsupport to convert %T to float64", src.Interface())
+	}
+
 	return
 }
 
@@ -373,7 +540,6 @@ func parseFloat64(src string) (dst float64, err error) {
 
 // ToDuration converts any to a time.Duration value.
 func ToDuration(any interface{}) (dst time.Duration, err error) {
-	any = indirect(any)
 	if ToDurationHook != nil {
 		return ToDurationHook(any)
 	}
@@ -412,11 +578,40 @@ func ToDuration(any interface{}) (dst time.Duration, err error) {
 		dst = time.Duration(src) * time.Millisecond
 	case time.Duration:
 		dst = src
+	case *time.Duration:
+		dst = *src
 	case fmt.Stringer:
 		dst, err = parseDuration(src.String())
 	default:
-		err = fmt.Errorf("cast.ToDuration: unsupport to convert %T to time.Duration", any)
+		dst, err = tryReflectToDuration(reflect.ValueOf(any))
 	}
+	return
+}
+
+func tryReflectToDuration(src reflect.Value) (dst time.Duration, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToDuration(src.Elem())
+		}
+
+	case reflect.String:
+		dst, err = parseDuration(src.String())
+
+	case reflect.Float32, reflect.Float64:
+		dst = time.Duration(src.Float()) * time.Millisecond
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = time.Duration(src.Int()) * time.Millisecond
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = time.Duration(src.Uint()) * time.Millisecond
+
+	default:
+		err = fmt.Errorf("cast.ToDuration: unsupport to convert %T to time.Duration", src.Interface())
+	}
+
 	return
 }
 
@@ -452,7 +647,6 @@ func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (d
 		loc = defaults.TimeLocation.Get()
 	}
 
-	any = indirect(any)
 	if ToTimeHook != nil {
 		if len(layouts) == 0 {
 			layouts = defaults.TimeFormats.Get()
@@ -485,10 +679,40 @@ func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (d
 		dst = time.Unix(int64(src), 0).In(loc)
 	case time.Time:
 		dst = src.In(loc)
+	case *time.Time:
+		dst = src.In(loc)
 	case fmt.Stringer:
 		dst, err = TryParseTime(src.String(), loc, layouts...)
 	default:
-		err = fmt.Errorf("cast.ToTimeInLocation: unsupport to convert %T to time.Time", any)
+		dst, err = tryReflectToTimeInLocation(reflect.ValueOf(any), loc, layouts...)
+	}
+
+	return
+}
+
+func tryReflectToTimeInLocation(src reflect.Value, loc *time.Location,
+	layouts ...string) (dst time.Time, err error) {
+	switch src.Kind() {
+	case reflect.Invalid:
+	case reflect.Pointer:
+		if !src.IsNil() {
+			dst, err = tryReflectToTimeInLocation(src.Elem(), loc, layouts...)
+		}
+
+	case reflect.String:
+		dst, err = TryParseTime(src.String(), loc, layouts...)
+
+	case reflect.Float32, reflect.Float64:
+		dst = time.Unix(int64(src.Float()), 0).In(loc)
+
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		dst = time.Unix(src.Int(), 0).In(loc)
+
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		dst = time.Unix(int64(src.Uint()), 0).In(loc)
+
+	default:
+		err = fmt.Errorf("cast.ToTimeInLocation: unsupport to convert %T to time.Time", src.Interface())
 	}
 
 	return
