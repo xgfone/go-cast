@@ -109,6 +109,7 @@ func TestSet(t *testing.T) {
 	testSet(t, &f64, "float64_15", uint32(112), float64(112))
 	testSet(t, &f64, "float64_16", uint64(113), float64(113))
 	testSet(t, &f64, "float64_17", newStringer(114), float64(114))
+	testSet(t, &f64, "float64_18", time.Second, float64(1))
 
 	var i int
 	testSet(t, &i, "int_1", true, int(1))
@@ -303,8 +304,8 @@ func TestSet(t *testing.T) {
 	var d time.Duration
 	testSet(t, &d, "duration3", "1s", time.Second)
 	testSet(t, &d, "duration4", []byte("1m"), time.Minute)
-	testSet(t, &d, "duration5", float32(102), time.Duration(102)*time.Millisecond)
-	testSet(t, &d, "duration6", float64(103), time.Duration(103)*time.Millisecond)
+	testSet(t, &d, "duration5", float32(1), time.Second)
+	testSet(t, &d, "duration6", float64(2), time.Second*2)
 	testSet(t, &d, "duration7", int(104), time.Duration(104)*time.Millisecond)
 	testSet(t, &d, "duration8", int8(105), time.Duration(105)*time.Millisecond)
 	testSet(t, &d, "duration9", int16(106), time.Duration(106)*time.Millisecond)
