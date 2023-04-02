@@ -121,6 +121,22 @@ func ToTime(any interface{}) (dst time.Time, err error) {
 }
 
 // ToBoolPure converts any to a bool value.
+//
+// Supports the types as follow:
+//
+//	~bool
+//	~string: => strconv.ParseBool
+//	~float32, ~float64: => !=0
+//	~int, ~int8, ~int16, ~int32, ~int64: => !=0
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr: => !=0
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Bool() bool }
+//	interface{ IsZero() bool }
 func ToBoolPure(any interface{}) (dst bool, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -170,6 +186,8 @@ func ToBoolPure(any interface{}) (dst bool, err error) {
 		dst = src != 0
 	case interface{ Bool() bool }:
 		dst = src.Bool()
+	case interface{ IsZero() bool }:
+		dst = !src.IsZero()
 	case fmt.Stringer:
 		dst, err = parseBool(src.String())
 	default:
@@ -216,6 +234,22 @@ func parseBool(src string) (dst bool, err error) {
 }
 
 // ToStringPure converts any to a string value.
+//
+// Supports the types as follow:
+//
+//	~bool
+//	~string
+//	~float32, ~float64
+//	~int, ~int8, ~int16, ~int32, ~int64
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr
+//	time.Time: => time.RFC3339Nano
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	error
+//	fmt.Stringer
 func ToStringPure(any interface{}) (dst string, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -298,6 +332,24 @@ func tryReflectToString(src reflect.Value) (dst string, err error) {
 }
 
 // ToInt64Pure converts any to a int64 value.
+//
+// Supports the types as follow:
+//
+//	~bool
+//	~string: => strconv.ParseInt
+//	~float32, ~float64
+//	~int, ~int8, ~int16, ~int32, ~int64
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr
+//	time.Duration: => N(ms)
+//	time.Time: => unix timestamp
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Int64() int64 }
+//	interface{ Int() int64 }
 func ToInt64Pure(any interface{}) (dst int64, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -395,6 +447,22 @@ func parseInt64(src string) (dst int64, err error) {
 }
 
 // ToUint64Pure converts any to a uint64 value.
+//
+// Supports the types as follow:
+//
+//	~bool
+//	~string: => strconv.ParseUint
+//	~float32, ~float64
+//	~int, ~int8, ~int16, ~int32, ~int64
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Uint64() uint64 }
+//	interface{ Uint() uint64 }
 func ToUint64Pure(any interface{}) (dst uint64, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -513,6 +581,23 @@ func parseUint64(src string) (dst uint64, err error) {
 }
 
 // ToFloat64Pure converts any to a float64 value.
+//
+// Supports the types as follow:
+//
+//	~bool
+//	~string: => strconv.ParseFloat
+//	~float32, ~float64
+//	~int, ~int8, ~int16, ~int32, ~int64
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr
+//	time.Duration: => F<s>
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Float64() float64 }
+//	interface{ Float() float64 }
 func ToFloat64Pure(any interface{}) (dst float64, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -606,6 +691,21 @@ func parseFloat64(src string) (dst float64, err error) {
 }
 
 // ToDurationPure converts any to a time.Duration value.
+//
+// Supports the types as follow:
+//
+//	~string: => N<ms> if integer string, else time.ParseDuration
+//	~float32, ~float64: => F<s>
+//	~int, ~int8, ~int16, ~int32, ~int64: => N<ms>
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64, ~uintptr: => N<ms>
+//	time.Duration
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Duration() time.Duration }
 func ToDurationPure(any interface{}) (dst time.Duration, err error) {
 	switch src := any.(type) {
 	case nil:
@@ -699,6 +799,21 @@ func parseDuration(src string) (dst time.Duration, err error) {
 }
 
 // ToTimeInLocationPure converts any to a time.Time value.
+//
+// Supports the types as follow:
+//
+//	~string: => TryParseTime
+//	~float32, ~float64: => unix timestamp
+//	~int, ~int8, ~int16, ~int32, ~int64: => unix timestamp
+//	~uint, ~uint8, ~uint16, ~uint32, ~uint64: => unix timestamp
+//	time.Time
+//
+// And the pointer to types above, and the types as follow:
+//
+//	nil
+//	[]byte
+//	fmt.Stringer
+//	interface{ Time() time.Time }
 //
 // If loc is nil, use defaults.TimeLocation instead.
 // If any is a string-like, use TryParseTime to parse it with layouts.
