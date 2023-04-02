@@ -105,6 +105,9 @@ func ToDuration(any interface{}) (dst time.Duration, err error) {
 // rather than ToTimeInLocationPure.
 func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error) {
 	if ToTimeHook != nil {
+		if len(layouts) == 0 {
+			layouts = defaults.TimeFormats.Get()
+		}
 		dst, err = ToTimeHook(any, loc, layouts...)
 	} else {
 		dst, err = ToTimeInLocationPure(any, loc, layouts...)
@@ -119,10 +122,6 @@ func ToTime(any interface{}) (dst time.Time, err error) {
 
 // ToBoolPure converts any to a bool value.
 func ToBoolPure(any interface{}) (dst bool, err error) {
-	if ToBoolHook != nil {
-		return ToBoolHook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -216,10 +215,6 @@ func parseBool(src string) (dst bool, err error) {
 
 // ToStringPure converts any to a string value.
 func ToStringPure(any interface{}) (dst string, err error) {
-	if ToStringHook != nil {
-		return ToStringHook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -302,10 +297,6 @@ func tryReflectToString(src reflect.Value) (dst string, err error) {
 
 // ToInt64Pure converts any to a int64 value.
 func ToInt64Pure(any interface{}) (dst int64, err error) {
-	if ToInt64Hook != nil {
-		return ToInt64Hook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -399,10 +390,6 @@ func parseInt64(src string) (dst int64, err error) {
 
 // ToUint64Pure converts any to a uint64 value.
 func ToUint64Pure(any interface{}) (dst uint64, err error) {
-	if ToUint64Hook != nil {
-		return ToUint64Hook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -517,10 +504,6 @@ func parseUint64(src string) (dst uint64, err error) {
 
 // ToFloat64Pure converts any to a float64 value.
 func ToFloat64Pure(any interface{}) (dst float64, err error) {
-	if ToFloat64Hook != nil {
-		return ToFloat64Hook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -606,10 +589,6 @@ func parseFloat64(src string) (dst float64, err error) {
 
 // ToDurationPure converts any to a time.Duration value.
 func ToDurationPure(any interface{}) (dst time.Duration, err error) {
-	if ToDurationHook != nil {
-		return ToDurationHook(any)
-	}
-
 	switch src := any.(type) {
 	case nil:
 	case string:
@@ -706,13 +685,6 @@ func parseDuration(src string) (dst time.Duration, err error) {
 func ToTimeInLocationPure(any interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error) {
 	if loc == nil {
 		loc = defaults.TimeLocation.Get()
-	}
-
-	if ToTimeHook != nil {
-		if len(layouts) == 0 {
-			layouts = defaults.TimeFormats.Get()
-		}
-		return ToTimeHook(any, loc, layouts...)
 	}
 
 	switch src := any.(type) {
