@@ -889,9 +889,20 @@ func tryReflectToTimeInLocation(src reflect.Value, loc *time.Location,
 }
 
 func isIntegerString(s string) bool {
-	for i, _len := 0, len(s); i < _len; i++ {
+	_len := len(s)
+	if _len == 0 {
+		return false
+	}
+
+	switch s[0] {
+	case '-', '+':
+		s = s[1:]
+		_len--
+	}
+
+	for i := 0; i < _len; i++ {
 		switch s[i] {
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-':
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		default:
 			return false
 		}

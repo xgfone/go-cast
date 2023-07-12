@@ -242,4 +242,8 @@ func TestIsIntegerString(t *testing.T) {
 	} else if v != -1000 {
 		t.Errorf("expect %d, but got %d", -1000, v)
 	}
+
+	if isIntegerString("2006-01-02") {
+		t.Error("2006-01-02: expect false, but got true")
+	}
 }
