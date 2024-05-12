@@ -2,7 +2,7 @@ name: Go
 on: push
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     name: Go ${{ matrix.go }}
     strategy:
       matrix:
@@ -10,10 +10,12 @@ jobs:
         - '1.18'
         - '1.19'
         - '1.20'
+        - '1.21'
+        - '1.22'
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go }}
     - run: go test -race -cover
