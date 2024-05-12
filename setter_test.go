@@ -32,7 +32,7 @@ func (s *fmtStringer) Set(src interface{}) (err error) {
 }
 
 func TestSet(t *testing.T) {
-	Set(nil, nil)
+	_ = Set(nil, nil)
 
 	var b bool
 	testSet(t, &b, "bool1", true, true)
