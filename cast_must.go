@@ -26,18 +26,10 @@ func Must[T any](value T, err error) T {
 
 // MustToTimeInLocation is the same as ToTimeInLocation, but panics if there is an error.
 func MustToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) time.Time {
-	v, err := ToTimeInLocation(any, loc, layouts...)
-	if err != nil {
-		panic(err)
-	}
-	return v
+	return Must(ToTimeInLocation(any, loc, layouts...))
 }
 
 // MustParseTime is the same as TryParseTime, but panics if there is an error.
 func MustParseTime(value string, loc *time.Location, layouts ...string) time.Time {
-	v, err := TryParseTime(value, loc, layouts...)
-	if err != nil {
-		panic(err)
-	}
-	return v
+	return Must(TryParseTime(value, loc, layouts...))
 }
