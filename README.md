@@ -3,6 +3,7 @@
 Provide some functions, supporting `Go1.21+`, to convert the value between different types, such as `ToXXX`.
 
 ## Installation
+
 ```shell
 $ go get -u github.com/xgfone/go-cast
 ```
@@ -10,20 +11,21 @@ $ go get -u github.com/xgfone/go-cast
 ## API
 
 #### Convert Function
-```go
-func ToTime(any interface{}) (dst time.Time, err error)
-func ToBool(any interface{}) (dst bool, err error)
-func ToInt64(any interface{}) (dst int64, err error)
-func ToUint64(any interface{}) (dst uint64, err error)
-func ToFloat64(any interface{}) (dst float64, err error)
-func ToString(any interface{}) (dst string, err error)
-func ToDuration(any interface{}) (dst time.Duration, err error)
 
-func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (time.Time, error)
-func MustToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) time.Time
+```go
+func ToTime(any any) (dst time.Time, err error)
+func ToBool(any any) (dst bool, err error)
+func ToInt64(any any) (dst int64, err error)
+func ToUint64(any any) (dst uint64, err error)
+func ToFloat64(any any) (dst float64, err error)
+func ToString(any any) (dst string, err error)
+func ToDuration(any any) (dst time.Duration, err error)
+
+func ToTimeInLocation(any any, loc *time.Location, layouts ...string) (time.Time, error)
+func MustToTimeInLocation(any any, loc *time.Location, layouts ...string) time.Time
 func MustParseTime(value string, loc *time.Location, layouts ...string) time.Time
 func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Time, error)
-func Set(dst, src interface{}) (err error)
+func Set(dst, src any) (err error)
 
 // Must is the generic function and used by associating with ToXXX. For example,
 //   Must(ToBool(any))

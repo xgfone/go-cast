@@ -44,8 +44,8 @@ import (
 //   - *time.Duration
 //   - reflect.Value
 //   - interface sql.Scanner
-//   - interface { Set(interface{}) error }
-func Set(dst, src interface{}) (err error) {
+//   - interface { Set(any) error }
+func Set(dst, src any) (err error) {
 	switch d := dst.(type) {
 	case nil:
 		return
@@ -155,7 +155,7 @@ func Set(dst, src interface{}) (err error) {
 	case reflect.Value:
 		err = reflectSet(dst, d, src)
 
-	case interface{ Set(interface{}) error }:
+	case interface{ Set(any) error }:
 		err = d.Set(src)
 
 	case sql.Scanner:
@@ -169,7 +169,7 @@ func Set(dst, src interface{}) (err error) {
 }
 
 // reflectSet is the same as Set, which does the best to set the reflect value dst to src.
-func reflectSet(orig interface{}, dst reflect.Value, src interface{}) (err error) {
+func reflectSet(orig any, dst reflect.Value, src any) (err error) {
 	if !dst.CanSet() {
 		if dst.Kind() == reflect.Pointer {
 			elem := dst.Elem()
@@ -235,7 +235,7 @@ func reflectSet(orig interface{}, dst reflect.Value, src interface{}) (err error
 				dst.Set(reflect.ValueOf(v))
 			}
 
-		case interface{ Set(interface{}) error }:
+		case interface{ Set(any) error }:
 			err = d.Set(src)
 
 		case sql.Scanner:

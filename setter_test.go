@@ -24,9 +24,9 @@ import (
 
 type fmtStringer struct{ v string }
 
-func newStringer(v interface{}) fmtStringer { return fmtStringer{fmt.Sprint(v)} }
-func (s fmtStringer) String() string        { return s.v }
-func (s *fmtStringer) Set(src interface{}) (err error) {
+func newStringer(v any) fmtStringer  { return fmtStringer{fmt.Sprint(v)} }
+func (s fmtStringer) String() string { return s.v }
+func (s *fmtStringer) Set(src any) (err error) {
 	s.v, err = ToString(src)
 	return
 }
@@ -336,11 +336,11 @@ func TestSet(t *testing.T) {
 	testSet(t, reflect.ValueOf(&striface), "interface2", errors.New("test"), newStringer("test"))
 }
 
-func testSet(t *testing.T, result interface{}, prefix string, set, expect interface{}) {
+func testSet(t *testing.T, result any, prefix string, set, expect any) {
 	testSetResult(t, prefix, result, Set(result, set), expect)
 }
 
-func testSetResult(t *testing.T, prefix string, result interface{}, err error, expect interface{}) {
+func testSetResult(t *testing.T, prefix string, result any, err error, expect any) {
 	if err != nil {
 		t.Errorf("%s: %s", prefix, err)
 		return

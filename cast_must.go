@@ -25,7 +25,7 @@ func Must[T any](value T, err error) T {
 }
 
 // MustToTimeInLocation is the same as ToTimeInLocation, but panics if there is an error.
-func MustToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) time.Time {
+func MustToTimeInLocation(any any, loc *time.Location, layouts ...string) time.Time {
 	return Must(ToTimeInLocation(any, loc, layouts...))
 }
 

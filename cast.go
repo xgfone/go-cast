@@ -26,18 +26,18 @@ import (
 
 // Define some hook functions to intercept the ToXXX conversion.
 var (
-	ToBoolHook     func(src interface{}) (dst bool, err error)
-	ToInt64Hook    func(src interface{}) (dst int64, err error)
-	ToUint64Hook   func(src interface{}) (dst uint64, err error)
-	ToFloat64Hook  func(src interface{}) (dst float64, err error)
-	ToStringHook   func(src interface{}) (dst string, err error)
-	ToDurationHook func(src interface{}) (dst time.Duration, err error)
-	ToTimeHook     func(src interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error)
+	ToBoolHook     func(src any) (dst bool, err error)
+	ToInt64Hook    func(src any) (dst int64, err error)
+	ToUint64Hook   func(src any) (dst uint64, err error)
+	ToFloat64Hook  func(src any) (dst float64, err error)
+	ToStringHook   func(src any) (dst string, err error)
+	ToDurationHook func(src any) (dst time.Duration, err error)
+	ToTimeHook     func(src any, loc *time.Location, layouts ...string) (dst time.Time, err error)
 )
 
 // ToBool prefers to use ToBoolHook to convert any to a bool value
 // rather than ToBoolPure.
-func ToBool(any interface{}) (dst bool, err error) {
+func ToBool(any any) (dst bool, err error) {
 	if ToBoolHook != nil {
 		dst, err = ToBoolHook(any)
 	} else {
@@ -48,7 +48,7 @@ func ToBool(any interface{}) (dst bool, err error) {
 
 // ToInt64 prefers to use ToInt64Hook to convert any to a int64 value
 // rather than ToInt64Pure.
-func ToInt64(any interface{}) (dst int64, err error) {
+func ToInt64(any any) (dst int64, err error) {
 	if ToInt64Hook != nil {
 		dst, err = ToInt64Hook(any)
 	} else {
@@ -59,7 +59,7 @@ func ToInt64(any interface{}) (dst int64, err error) {
 
 // ToUint64 prefers to use ToUint64Hook to convert any to a uint64 value
 // rather than ToUint64Pure.
-func ToUint64(any interface{}) (dst uint64, err error) {
+func ToUint64(any any) (dst uint64, err error) {
 	if ToUint64Hook != nil {
 		dst, err = ToUint64Hook(any)
 	} else {
@@ -70,7 +70,7 @@ func ToUint64(any interface{}) (dst uint64, err error) {
 
 // ToFloat64 prefers to use ToFloat64Hook to convert any to a float64 value
 // rather than ToFloat64Pure.
-func ToFloat64(any interface{}) (dst float64, err error) {
+func ToFloat64(any any) (dst float64, err error) {
 	if ToFloat64Hook != nil {
 		dst, err = ToFloat64Hook(any)
 	} else {
@@ -81,7 +81,7 @@ func ToFloat64(any interface{}) (dst float64, err error) {
 
 // ToString prefers to use ToStringHook to convert any to a string value
 // rather than ToStringPure.
-func ToString(any interface{}) (dst string, err error) {
+func ToString(any any) (dst string, err error) {
 	if ToStringHook != nil {
 		dst, err = ToStringHook(any)
 	} else {
@@ -92,7 +92,7 @@ func ToString(any interface{}) (dst string, err error) {
 
 // ToDuration prefers to use ToDurationHook to convert any to a time.Duration value
 // rather than ToDurationPure.
-func ToDuration(any interface{}) (dst time.Duration, err error) {
+func ToDuration(any any) (dst time.Duration, err error) {
 	if ToDurationHook != nil {
 		dst, err = ToDurationHook(any)
 	} else {
@@ -103,7 +103,7 @@ func ToDuration(any interface{}) (dst time.Duration, err error) {
 
 // ToTimeInLocation prefers to use ToTimeHook to convert any to a time.Time value
 // rather than ToTimeInLocationPure.
-func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error) {
+func ToTimeInLocation(any any, loc *time.Location, layouts ...string) (dst time.Time, err error) {
 	if ToTimeHook != nil {
 		if len(layouts) == 0 {
 			layouts = defaults.TimeFormats.Get()
@@ -116,7 +116,7 @@ func ToTimeInLocation(any interface{}, loc *time.Location, layouts ...string) (d
 }
 
 // ToTime is a convenient function, which is equal to ToTimeInLocation(any, nil).
-func ToTime(any interface{}) (dst time.Time, err error) {
+func ToTime(any any) (dst time.Time, err error) {
 	return ToTimeInLocation(any, nil)
 }
 
@@ -137,7 +137,7 @@ func ToTime(any interface{}) (dst time.Time, err error) {
 //	fmt.Stringer
 //	interface{ Bool() bool }
 //	interface{ IsZero() bool }
-func ToBoolPure(any interface{}) (dst bool, err error) {
+func ToBoolPure(any any) (dst bool, err error) {
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -250,7 +250,7 @@ func parseBool(src string) (dst bool, err error) {
 //	[]byte
 //	error
 //	fmt.Stringer
-func ToStringPure(any interface{}) (dst string, err error) {
+func ToStringPure(any any) (dst string, err error) {
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -350,7 +350,7 @@ func tryReflectToString(src reflect.Value) (dst string, err error) {
 //	fmt.Stringer
 //	interface{ Int64() int64 }
 //	interface{ Int() int64 }
-func ToInt64Pure(any interface{}) (dst int64, err error) {
+func ToInt64Pure(any any) (dst int64, err error) {
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -463,7 +463,7 @@ func parseInt64(src string) (dst int64, err error) {
 //	fmt.Stringer
 //	interface{ Uint64() uint64 }
 //	interface{ Uint() uint64 }
-func ToUint64Pure(any interface{}) (dst uint64, err error) {
+func ToUint64Pure(any any) (dst uint64, err error) {
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -598,7 +598,7 @@ func parseUint64(src string) (dst uint64, err error) {
 //	fmt.Stringer
 //	interface{ Float64() float64 }
 //	interface{ Float() float64 }
-func ToFloat64Pure(any interface{}) (dst float64, err error) {
+func ToFloat64Pure(any any) (dst float64, err error) {
 	switch src := any.(type) {
 	case nil:
 	case bool:
@@ -706,7 +706,7 @@ func parseFloat64(src string) (dst float64, err error) {
 //	[]byte
 //	fmt.Stringer
 //	interface{ Duration() time.Duration }
-func ToDurationPure(any interface{}) (dst time.Duration, err error) {
+func ToDurationPure(any any) (dst time.Duration, err error) {
 	switch src := any.(type) {
 	case nil:
 	case string:
@@ -817,7 +817,7 @@ func parseDuration(src string) (dst time.Duration, err error) {
 //
 // If loc is nil, use defaults.TimeLocation instead.
 // If any is a string-like, use TryParseTime to parse it with layouts.
-func ToTimeInLocationPure(any interface{}, loc *time.Location, layouts ...string) (dst time.Time, err error) {
+func ToTimeInLocationPure(any any, loc *time.Location, layouts ...string) (dst time.Time, err error) {
 	if loc == nil {
 		loc = defaults.TimeLocation.Get()
 	}
