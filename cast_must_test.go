@@ -14,23 +14,18 @@
 
 package cast
 
-import "time"
+import (
+	"testing"
+	"time"
+)
 
-func ExampleMust() {
+func TestMust(t *testing.T) {
 	Must(ToBool("true"))
 	Must(ToInt64("123"))
 	Must(ToString(1234))
-	// Output:
 }
 
-func ExampleMustParseTime() {
+func TestMustParseTime(t *testing.T) {
 	MustParseTime("2009-02-13T23:31:30Z", nil)
 	MustParseTime("2009-02-13 23:31:30", time.UTC)
-	// Output:
-}
-
-func ExampleMustToTimeInLocation() {
-	MustToTimeInLocation("2009-02-13T23:31:30Z", nil)
-	MustToTimeInLocation(1234567890, nil)
-	// Output:
 }

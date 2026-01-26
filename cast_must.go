@@ -16,17 +16,14 @@ package cast
 
 import "time"
 
-// Must checks whether err is not nil. If not nil, panic with it. Or, return value.
+// Must checks whether err is not nil.
+//
+// If not nil, panic with it. Or, return value.
 func Must[T any](value T, err error) T {
 	if err == nil {
 		return value
 	}
 	panic(err)
-}
-
-// MustToTimeInLocation is the same as ToTimeInLocation, but panics if there is an error.
-func MustToTimeInLocation(any any, loc *time.Location, layouts ...string) time.Time {
-	return Must(ToTimeInLocation(any, loc, layouts...))
 }
 
 // MustParseTime is the same as TryParseTime, but panics if there is an error.

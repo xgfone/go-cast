@@ -1,5 +1,5 @@
 module github.com/xgfone/go-cast
 
-require github.com/xgfone/go-defaults v0.14.0
+require github.com/xgfone/go-toolkit v0.15.0
 
-go 1.21
+go 1.22
