@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"reflect"
 	"time"
-
-	"github.com/xgfone/go-toolkit/iterx"
 )
 
 // ToDuration converts any to a time.Duration value.
@@ -106,7 +104,12 @@ func tryReflectToDuration(src reflect.Value) (dst time.Duration, err error) {
 	return
 }
 
-func convertIntegerToDuration[T iterx.Integer](src T) time.Duration {
+type _Integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 |
+		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+func convertIntegerToDuration[T _Integer](src T) time.Duration {
 	return time.Duration(src) * time.Millisecond
 }
 
