@@ -24,10 +24,30 @@ import (
 	"github.com/xgfone/go-toolkit/unsafex"
 )
 
-var TimeFormats = []string{
+var timeFormats = []string{
 	time.RFC3339Nano,
 	"2006-01-02 15:04:05",
 	"2006-01-02",
+}
+
+// SetTimeLocation forwards the calling to [github.com/xgfone/go-toolkit/timex.SetLocation].
+func SetTimeLocation(loc *time.Location) {
+	timex.SetLocation(loc)
+}
+
+// SetTimeFormats sets the default time formats used by TryParseTime.
+//
+// Default: [RFC3339Nano, "2006-01-02 15:04:05", "2006-01-02"]
+func SetTimeFormats(formats ...string) {
+	if len(formats) == 0 {
+		panic("cast.SetTimeFormats: formats is empty")
+	}
+	for i, format := range formats {
+		if format == "" {
+			panic(fmt.Errorf("cast.SetTimeFormats: %dth format is empty", i))
+		}
+	}
+	timeFormats = formats
 }
 
 // ToTime is a convenient function, which is equal to ToTimeInLocation(any, nil).
@@ -124,7 +144,7 @@ func tryReflectToTimeInLocation(src reflect.Value, loc *time.Location, layouts .
 // TryParseTime tries to parse the string value with the layouts in turn to time.Time.
 //
 // If loc is nil, use timex.Location instead.
-// If layouts is empty, use Formats instead.
+// If layouts is empty, use the default formats set by SetTimeFormats instead.
 //
 // If value is an integer string, it will be parsee as the unix timestamp.
 func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Time, error) {
@@ -150,7 +170,7 @@ func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Tim
 	}
 
 	if len(layouts) == 0 {
-		layouts = TimeFormats
+		layouts = timeFormats
 		if len(layouts) == 0 {
 			layouts = []string{time.DateTime, time.RFC3339Nano}
 		}
@@ -167,10 +187,10 @@ func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Tim
 
 func getLocation() *time.Location {
 	switch loc := any(timex.Location).(type) {
-	case *time.Location:
+	case *time.Location: //<1.0.0
 		return loc
 
-	case func() *time.Location:
+	case func() *time.Location: // >=v1.0.0
 		return loc()
 
 	default:
