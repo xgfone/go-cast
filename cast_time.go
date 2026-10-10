@@ -19,20 +19,13 @@ import (
 	"reflect"
 	"strconv"
 	"time"
-
-	"github.com/xgfone/go-toolkit/timex"
-	"github.com/xgfone/go-toolkit/unsafex"
+	"unsafe"
 )
 
 var timeFormats = []string{
 	time.RFC3339Nano,
 	"2006-01-02 15:04:05",
 	"2006-01-02",
-}
-
-// SetTimeLocation forwards the calling to [github.com/xgfone/go-toolkit/timex.SetLocation].
-func SetTimeLocation(loc *time.Location) {
-	timex.SetLocation(loc)
 }
 
 // SetTimeFormats sets the default time formats used by TryParseTime.
@@ -71,11 +64,11 @@ func ToTime(any any) (dst time.Time, err error) {
 //	[]byte
 //	interface{ Time() time.Time }
 //
-// If loc is nil, use timex.Location instead.
+// If loc is nil, use time.Local instead.
 // If any is a string-like, use TryParseTime to parse it with layouts.
 func ToTimeInLocation(any any, loc *time.Location) (dst time.Time, err error) {
 	if loc == nil {
-		loc = getLocation()
+		loc = time.Local
 	}
 
 	switch src := any.(type) {
@@ -84,7 +77,7 @@ func ToTimeInLocation(any any, loc *time.Location) (dst time.Time, err error) {
 	case string:
 		dst, err = TryParseTime(src, loc)
 	case []byte:
-		dst, err = TryParseTime(unsafex.String(src), loc)
+		dst, err = TryParseTime(bytes2str(src), loc)
 	case float32:
 		dst = time.Unix(int64(src), 0).In(loc)
 	case float64:
@@ -112,6 +105,10 @@ func ToTimeInLocation(any any, loc *time.Location) (dst time.Time, err error) {
 	}
 
 	return
+}
+
+func bytes2str(b []byte) string {
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func tryReflectToTimeInLocation(src reflect.Value, loc *time.Location, layouts ...string) (dst time.Time, err error) {
@@ -143,13 +140,13 @@ func tryReflectToTimeInLocation(src reflect.Value, loc *time.Location, layouts .
 
 // TryParseTime tries to parse the string value with the layouts in turn to time.Time.
 //
-// If loc is nil, use timex.Location instead.
+// If loc is nil, use time.Local instead.
 // If layouts is empty, use the default formats set by SetTimeFormats instead.
 //
 // If value is an integer string, it will be parsee as the unix timestamp.
 func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Time, error) {
 	if loc == nil {
-		loc = getLocation()
+		loc = time.Local
 	}
 
 	switch value {
@@ -183,17 +180,4 @@ func TryParseTime(value string, loc *time.Location, layouts ...string) (time.Tim
 	}
 
 	return time.Time{}.In(loc), fmt.Errorf("unable to parse time '%s'", value)
-}
-
-func getLocation() *time.Location {
-	switch loc := any(timex.Location).(type) {
-	case *time.Location: //<1.0.0
-		return loc
-
-	case func() *time.Location: // >=v1.0.0
-		return loc()
-
-	default:
-		panic(fmt.Errorf("unknown timex.Location type '%T'", loc))
-	}
 }
