@@ -20,6 +20,10 @@ import (
 )
 
 func ExampleToTime() {
+	local := time.Local
+	time.Local = time.UTC
+	defer func() { time.Local = local }()
+
 	type String string
 
 	fmt.Println(ToTime(nil))
